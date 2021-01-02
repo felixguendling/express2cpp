@@ -43,7 +43,7 @@ function(express2cpp express-file lib)
     )
     add_library(${lib} ${CMAKE_CURRENT_BINARY_DIR}/${lib}/${lib}.cc)
     target_link_libraries(${lib} utl cista)
-    target_include_directories(${lib} PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/${lib}/include ${CMAKE_CURRENT_SOURCE_DIR}/include)
+    target_include_directories(${lib} PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/${lib}/include ${CMAKE_CURRENT_FUNCTION_LIST_DIR}/include)
     target_compile_features(${lib} PUBLIC cxx_std_17)
 endfunction()
 

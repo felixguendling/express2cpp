@@ -1,7 +1,5 @@
 ![Logo](logo.png)
 
-![Logo](logo.png)
-
 # Usage
 
 ```cmake

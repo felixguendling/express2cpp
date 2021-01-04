@@ -7,6 +7,7 @@
 #include "IFC2X3/IfcCartesianPoint.h"
 #include "IFC2X3/IfcDirection.h"
 #include "IFC2X3/IfcShapeRepresentation.h"
+#include "IFC2X3/IfcOwnerHistory.h"
 
 TEST_CASE("parse product") {
   using building_element_proxy = IFC2X3::IfcBuildingElementProxy;
@@ -153,4 +154,16 @@ TEST_CASE("parse projection") {
   CHECK(reinterpret_cast<uintptr_t>(*proj.Axis_) == 5565);
   REQUIRE(proj.RefDirection_.has_value());
   CHECK(reinterpret_cast<uintptr_t>(*proj.RefDirection_) == 5566);
+}
+
+TEST_CASE("parse owner history") {
+  using owner_history = IFC2X3::IfcOwnerHistory;
+
+  constexpr auto const input = "#5=IFCOWNERHISTORY(#8,#9,$,.NOCHANGE.,$,$,$,1591875543);";
+
+  step::entry_parser p;
+  p.register_parsers<owner_history>();
+  auto const entry = p.parse(input);
+  REQUIRE(entry.has_value());
+  CHECK(entry->first.id_ == 5);
 }

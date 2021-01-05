@@ -4,17 +4,6 @@ project(express2cpp)
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 
 include(cmake/buildcache.cmake)
-
-set(Boost_USE_STATIC_LIBS ON)
-set(Boost_USE_MULTITHREADED ON)
-if (MSVC)
-    set(Boost_USE_STATIC_RUNTIME ON)
-endif ()
-find_package(Boost COMPONENTS filesystem REQUIRED)
-find_package(Threads)
-link_directories(${Boost_LIBRARY_DIRS})
-include_directories(SYSTEM ${Boost_INCLUDE_DIR})
-
 include(cmake/pkg.cmake)
 
 configure_file(
@@ -27,7 +16,7 @@ target_include_directories(ifc-generated INTERFACE ${CMAKE_BINARY_DIR}/generated
 file(GLOB express-lib-files src/*.cc)
 add_library(express-lib ${express-lib-files})
 target_include_directories(express-lib PUBLIC include)
-target_link_libraries(express-lib ${Boost_LIBRARIES} cista utl)
+target_link_libraries(express-lib boost-filesystem boost cista utl)
 target_compile_features(express-lib PUBLIC cxx_std_17)
 
 file(GLOB express-gen-files exe/express_gen.cc)

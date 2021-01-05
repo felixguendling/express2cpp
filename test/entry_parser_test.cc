@@ -43,17 +43,6 @@ TEST_CASE("parse product") {
   CHECK(bep.Tag_ == "Tag:88209840");
 
   CHECK(!bep.CompositionType_.has_value());
-
-  bep.for_each_ref([](auto&& ref) {
-    auto const id_ok = reinterpret_cast<uintptr_t>(&ref) == 2U ||
-                       reinterpret_cast<uintptr_t>(&ref) == 411U ||
-                       reinterpret_cast<uintptr_t>(&ref) == 416U;
-    if (!id_ok) {
-      std::cout << "reinterpret_cast<uintptr_t>(&ref): "
-                << reinterpret_cast<uintptr_t>(&ref) << "\n";
-    }
-    CHECK(id_ok);
-  });
 }
 
 TEST_CASE("parse share representation") {
@@ -75,18 +64,6 @@ TEST_CASE("parse share representation") {
   CHECK(*bep.RepresentationType_ == "MappedRepresentation");
   CHECK(bep.Items_.size() == 1);
   CHECK(reinterpret_cast<uintptr_t>(bep.Items_[0]) == 96933U);
-
-  bep.for_each_ref([](auto&& ref) {
-    if constexpr (std::is_same_v<std::decay_t<decltype(ref)>,
-                                 IFC2X3::IfcRepresentationItem>) {
-      auto const id_ok = reinterpret_cast<uintptr_t>(&ref) == 96933U;
-      if (!id_ok) {
-        std::cout << "reinterpret_cast<uintptr_t>(&ref): "
-                  << reinterpret_cast<uintptr_t>(&ref) << "\n";
-      }
-      CHECK(id_ok);
-    }
-  });
 }
 
 TEST_CASE("parse cartesian point 1") {

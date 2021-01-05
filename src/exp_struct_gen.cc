@@ -165,41 +165,6 @@ void generate_header(std::ostream& out, schema const& s, type const& t) {
           << "  virtual void resolve(std::vector<root_entity*> const&) "
              "override;\n";
 
-      out << "  template <typename Fn>\n";
-      out << "  void for_each_ref(Fn&& f) const {\n";
-      if (!t.subtype_of_.empty()) {
-        out << "    static_cast<" << t.subtype_of_
-            << " const*>(this)->for_each_ref(std::forward<Fn>(f));\n";
-      }
-      for (auto const& m : t.members_) {
-        if (auto const data_type = is_special(s, m.type_);
-            !data_type.has_value()) {
-          if (m.optional_) {
-            out << "    if (" << m.name_ << "_.has_value()";
-            if (!m.list_) {
-              out << " && *" << m.name_ << "_ != nullptr";
-            }
-            out << ") {\n";
-          }
-          if (m.list_) {
-            out << "      for (auto const& e : " << (m.optional_ ? "*" : "")
-                << m.name_ << "_) {\n";
-            out << "        if (e != nullptr) { f(*e); }\n";
-            out << "      }\n";
-          } else {
-            out << "    if (" << (m.optional_ ? "*" : "") << m.name_
-                << "_ != nullptr) {";
-            out << "      f(" << (m.optional_ ? "**" : "*") << m.name_
-                << "_);\n";
-            out << "    }\n";
-          }
-          if (m.optional_) {
-            out << "    }\n";
-          }
-        }
-      }
-      out << "  }\n\n";
-
       for (auto const& m : t.members_) {
         auto const use_array =
             m.max_size_ != std::numeric_limits<unsigned>::max();

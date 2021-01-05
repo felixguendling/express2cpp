@@ -21,11 +21,16 @@ namespace step {
 struct entity_map {
   explicit entity_map(entry_parser& parser, utl::cstr s) {
     for (auto [line_idx, line] : utl::enumerate(utl::lines{s})) {
-      lines_.emplace_back(line.view());
-      auto p = parser.parse(line);
-      if (p.has_value()) {
-        auto& [id, entity] = *p;
-        add_entity(id, line_idx, std::move(entity));
+      try {
+        lines_.emplace_back(line.view());
+        auto p = parser.parse(line);
+        if (p.has_value()) {
+          auto& [id, entity] = *p;
+          add_entity(id, line_idx, std::move(entity));
+        }
+      } catch (std::exception const& e) {
+        std::cerr << "unable to parse line " << (line_idx + 1) << ": "
+                  << line.view() << "\n";
       }
     }
     resolve_all();

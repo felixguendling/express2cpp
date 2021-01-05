@@ -37,7 +37,8 @@ int main(int argc, char** argv) {
         (header_path / (t.name_ + ".h")).generic_string().c_str()};
     express::generate_header(header_out, schema, t);
 
-    if (t.data_type_ == express::data_type::ENTITY) {
+    if (t.data_type_ == express::data_type::ENTITY ||
+        t.data_type_ == express::data_type::ENUM) {
       express::generate_source(source_out, schema, t);
     }
   }

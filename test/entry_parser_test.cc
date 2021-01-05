@@ -6,8 +6,8 @@
 #include "IFC2X3/IfcBuildingElementProxy.h"
 #include "IFC2X3/IfcCartesianPoint.h"
 #include "IFC2X3/IfcDirection.h"
-#include "IFC2X3/IfcShapeRepresentation.h"
 #include "IFC2X3/IfcOwnerHistory.h"
+#include "IFC2X3/IfcShapeRepresentation.h"
 
 TEST_CASE("parse product") {
   using building_element_proxy = IFC2X3::IfcBuildingElementProxy;
@@ -159,11 +159,17 @@ TEST_CASE("parse projection") {
 TEST_CASE("parse owner history") {
   using owner_history = IFC2X3::IfcOwnerHistory;
 
-  constexpr auto const input = "#5=IFCOWNERHISTORY(#8,#9,$,.NOCHANGE.,$,$,$,1591875543);";
+  constexpr auto const input =
+      "#5=IFCOWNERHISTORY(#8,#9,$,.DELETED.,$,$,$,1591875543);";
 
   step::entry_parser p;
   p.register_parsers<owner_history>();
   auto const entry = p.parse(input);
   REQUIRE(entry.has_value());
   CHECK(entry->first.id_ == 5);
+  REQUIRE(nullptr !=
+          dynamic_cast<IFC2X3::IfcOwnerHistory*>(entry->second.get()));
+  auto const history =
+      dynamic_cast<IFC2X3::IfcOwnerHistory*>(entry->second.get());
+  CHECK(history->ChangeAction_ == IFC2X3::IfcChangeActionEnum::DELETED);
 }

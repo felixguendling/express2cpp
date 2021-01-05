@@ -134,7 +134,8 @@ void generate_header(std::ostream& out, schema const& s, type const& t) {
     case data_type::ENUM:
       out << "enum class " << t.name_ << " {\n";
       for (auto const& [i, v] : utl::enumerate(t.details_)) {
-        out << "  " << s.name_ << "_" << v << (i != t.details_.size() - 1 ? "," : "") << "\n";
+        out << "  " << s.name_ << "_" << v
+            << (i != t.details_.size() - 1 ? "," : "") << "\n";
       }
       out << "};\n";
       out << "void parse_step(utl::cstr&, " << t.name_ << "&);\n";

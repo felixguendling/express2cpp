@@ -12,7 +12,6 @@
 
 #include "utl/verify.h"
 
-namespace fusion = boost::fusion;
 namespace phoenix = boost::phoenix;
 namespace qi = boost::spirit::qi;
 namespace ascii = boost::spirit::ascii;
@@ -166,8 +165,8 @@ schema parse(std::string_view s) {
   using boost::spirit::ascii::space;
 
   schema schema;
-  auto iter = &s[0];
-  auto end = &s[s.size() - 1] + 1;
+  auto iter = &s[0];  // NOLINT
+  auto end = &s[s.size() - 1] + 1;  // NOLINT
   auto comment = express_grammar<decltype(iter)>{};
   auto const is_success = phrase_parse(iter, end, comment, space, schema);
   utl::verify_ex(is_success, parser_exception{iter, end});

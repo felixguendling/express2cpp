@@ -90,6 +90,12 @@ jobs:
 
       # ==== INSTALL ====
       - name: Install LLVM
+        if: matrix.config.os != 'macos-latest'
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: sudo apt-get update
+
+      - name: Install LLVM
         if: matrix.config.os != 'macos-latest' && matrix.config.cc == 'clang-11'
         env:
           DEBIAN_FRONTEND: noninteractive
@@ -99,6 +105,12 @@ jobs:
           sudo ./llvm.sh 11
           rm llvm.sh
           sudo apt-get install -y --no-install-recommends libc++-11-dev libc++abi-11-dev clang-tidy-11
+
+      - name: Install Valgrind
+        if: matrix.config.mode == 'Debug' && matrix.config.cc == 'gcc-10'
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: sudo apt-get install -y --no-install-recommends valgrind
 
       # ==== CACHING ====
       - name: buildcache Cache
@@ -131,12 +143,12 @@ jobs:
           -DCMAKE_CXX_LINKER_FLAGS=${{ matrix.config.ldflags }}" \
           -DCMAKE_CXX_EXE_LINKER_FLAGS="${{ matrix.config.ldflags }} \
           -DCMAKE_BUILD_TYPE=${{ matrix.config.mode }} \
-          -DNET_LINT=${{ matrix.config.lint }}
+          -DEXPRESS2CPP_LINT=${{ matrix.config.lint }}
 
       - name: Build
-        run:
+        run: |
           ./build/bin/buildcache -z
-          cmake --build build --target http-client net-web_server-sample net-wss_client-sample
+          cmake --build build --target express-test
           ./build/bin/buildcache -s
 
       # ==== TESTS ====

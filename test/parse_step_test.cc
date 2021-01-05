@@ -9,14 +9,14 @@ TEST_CASE("parse basic data types") {
   using step::parse_step;
   SUBCASE("int") {
     SUBCASE("before comma") {
-      int i;
+      int i{};
       auto s = utl::cstr{"123,"};
       parse_step(s, i);
       CHECK(i == 123);
       CHECK(s.view() == ",");
     }
     SUBCASE("before bracket") {
-      int i;
+      int i{};
       auto s = utl::cstr{"123)"};
       parse_step(s, i);
       CHECK(i == 123);
@@ -25,28 +25,28 @@ TEST_CASE("parse basic data types") {
   }
   SUBCASE("double") {
     SUBCASE("before comma") {
-      double d;
+      double d{};
       auto s = utl::cstr{"123,"};
       parse_step(s, d);
       CHECK(d == 123);
       CHECK(s.view() == ",");
     }
     SUBCASE("before bracket") {
-      double d;
+      double d{};
       auto s = utl::cstr{"123)"};
       parse_step(s, d);
       CHECK(d == 123);
       CHECK(s.view() == ")");
     }
     SUBCASE("E notation") {
-      double d;
+      double d{};
       auto s = utl::cstr{"123E2)"};
       parse_step(s, d);
       CHECK(d == 12300);
       CHECK(s.view() == ")");
     }
     SUBCASE("full test") {
-      double d;
+      double d{};
       auto s = utl::cstr{"0.12E1)"};
       parse_step(s, d);
       CHECK(d == 1.2);
@@ -85,7 +85,7 @@ TEST_CASE("parse basic data types") {
     }
   }
   SUBCASE("ptr") {
-    void* ptr;
+    void* ptr{};
     auto s = utl::cstr{"#123"};
     parse_step(s, ptr);
     CHECK(reinterpret_cast<uintptr_t>(ptr) == 123);
@@ -169,7 +169,7 @@ TEST_CASE("parse ifc") {
   auto parser = step::entry_parser{};
   IFC2X3::register_all_types(parser);
   auto model = step::entity_map{parser, ifc_input};
-  auto const flow_ctrl =
+  auto const& flow_ctrl =
       model.get_entity<IFC2X3::IfcFlowController>(step::id_t{96945});
   CHECK(flow_ctrl.GlobalId_ == "0Gkk91VZX968DF0GjbXoN4");
   REQUIRE(flow_ctrl.Representation_.has_value());

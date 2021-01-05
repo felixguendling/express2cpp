@@ -6,6 +6,11 @@ set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 include(cmake/buildcache.cmake)
 include(cmake/pkg.cmake)
 
+option(EXPRESS2CPP_LINT "Run clang-tidy with the compiler." OFF)
+if (EXPRESS2CPP_LINT)
+    include(cmake/clang-tidy.cmake)
+endif ()
+
 configure_file(
         ${CMAKE_CURRENT_SOURCE_DIR}/test/test_dir.h.in
         ${CMAKE_BINARY_DIR}/generated/test_dir.h
@@ -31,6 +36,9 @@ function(express2cpp express-file lib)
             OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${lib}/${lib}.cc
     )
     add_library(${lib} ${CMAKE_CURRENT_BINARY_DIR}/${lib}/${lib}.cc)
+    if (MSVC)
+        target_compile_options(${lib} PRIVATE /bigobj)
+    endif ()
     target_link_libraries(${lib} utl cista)
     target_include_directories(${lib} PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/${lib}/include ${CMAKE_CURRENT_FUNCTION_LIST_DIR}/include)
     target_compile_features(${lib} PUBLIC cxx_std_17)

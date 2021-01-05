@@ -4,7 +4,6 @@
 
 #include "utl/parser/arg_parser.h"
 
-#include "step/get_next_token.h"
 #include "step/id_t.h"
 
 namespace step {

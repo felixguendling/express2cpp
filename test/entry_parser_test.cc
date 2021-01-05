@@ -12,7 +12,7 @@
 TEST_CASE("parse product") {
   using building_element_proxy = IFC2X3::IfcBuildingElementProxy;
 
-  constexpr auto const input =
+  constexpr auto const* const input =
       "#410 = IFCBUILDINGELEMENTPROXY('2K5zlWhbnD_Pplf7Wq7h2T', #2, "
       "'Platzhalter:88209840', $, $, #411, #416, 'Tag:88209840', $);";
 
@@ -43,19 +43,12 @@ TEST_CASE("parse product") {
   CHECK(bep.Tag_ == "Tag:88209840");
 
   CHECK(!bep.CompositionType_.has_value());
-
-  bep.for_each_ref([](auto&& ref) {
-    auto const id_ok = reinterpret_cast<uintptr_t>(&ref) == 2U ||
-                       reinterpret_cast<uintptr_t>(&ref) == 411U ||
-                       reinterpret_cast<uintptr_t>(&ref) == 416U;
-    CHECK(id_ok);
-  });
 }
 
 TEST_CASE("parse share representation") {
   using shape_representation = IFC2X3::IfcShapeRepresentation;
 
-  constexpr auto const input =
+  constexpr auto const* const input =
       "#96944 = IFCSHAPEREPRESENTATION(#20, 'Body', 'MappedRepresentation', "
       "(#96933));";
 
@@ -71,20 +64,12 @@ TEST_CASE("parse share representation") {
   CHECK(*bep.RepresentationType_ == "MappedRepresentation");
   CHECK(bep.Items_.size() == 1);
   CHECK(reinterpret_cast<uintptr_t>(bep.Items_[0]) == 96933U);
-
-  bep.for_each_ref([](auto&& ref) {
-    if constexpr (std::is_same_v<std::decay_t<decltype(ref)>,
-                                 IFC2X3::IfcRepresentationItem>) {
-      auto const id_ok = reinterpret_cast<uintptr_t>(&ref) == 96933U;
-      CHECK(id_ok);
-    }
-  });
 }
 
 TEST_CASE("parse cartesian point 1") {
   using vertex = IFC2X3::IfcCartesianPoint;
 
-  constexpr auto const input =
+  constexpr auto const* const input =
       "#5466 = IFCCARTESIANPOINT((-73910.476024,65619.415293,49080.450753));";
 
   step::entry_parser p;
@@ -102,7 +87,7 @@ TEST_CASE("parse cartesian point 1") {
 TEST_CASE("parse cartesian point 2") {
   using vertex = IFC2X3::IfcCartesianPoint;
 
-  constexpr auto const input =
+  constexpr auto const* const input =
       "#16783 = IFCCARTESIANPOINT((-29750.345510,68710.165565,53116.953431));";
 
   step::entry_parser p;
@@ -120,7 +105,7 @@ TEST_CASE("parse cartesian point 2") {
 TEST_CASE("parse direction") {
   using direction = IFC2X3::IfcDirection;
 
-  constexpr auto const input =
+  constexpr auto const* const input =
       "#5574 = IFCDIRECTION((0.000000,0.000000,1.000000));";
 
   step::entry_parser p;
@@ -139,7 +124,7 @@ TEST_CASE("parse direction") {
 TEST_CASE("parse projection") {
   using projection = IFC2X3::IfcAxis2Placement3D;
 
-  constexpr auto const input =
+  constexpr auto const* const input =
       "#5563 = IFCAXIS2PLACEMENT3D(#5564, #5565, #5566);";
 
   step::entry_parser p;
@@ -148,7 +133,7 @@ TEST_CASE("parse projection") {
   REQUIRE(entry.has_value());
   CHECK(entry->first.id_ == 5563);
   REQUIRE(nullptr != dynamic_cast<projection*>(entry->second.get()));
-  auto const proj = *dynamic_cast<projection*>(entry->second.get());
+  auto const& proj = *dynamic_cast<projection*>(entry->second.get());
   CHECK(reinterpret_cast<uintptr_t>(proj.Location_) == 5564);
   REQUIRE(proj.Axis_.has_value());
   CHECK(reinterpret_cast<uintptr_t>(*proj.Axis_) == 5565);
@@ -159,7 +144,7 @@ TEST_CASE("parse projection") {
 TEST_CASE("parse owner history") {
   using owner_history = IFC2X3::IfcOwnerHistory;
 
-  constexpr auto const input =
+  constexpr auto const* const input =
       "#5=IFCOWNERHISTORY(#8,#9,$,.DELETED.,$,$,$,1591875543);";
 
   step::entry_parser p;
@@ -169,9 +154,9 @@ TEST_CASE("parse owner history") {
   CHECK(entry->first.id_ == 5);
   REQUIRE(nullptr !=
           dynamic_cast<IFC2X3::IfcOwnerHistory*>(entry->second.get()));
-  auto const history =
+  auto const* const history =
       dynamic_cast<IFC2X3::IfcOwnerHistory*>(entry->second.get());
-  CHECK(history->ChangeAction_ == IFC2X3::IfcChangeActionEnum::DELETED);
+  CHECK(history->ChangeAction_ == IFC2X3::IfcChangeActionEnum::IFC2X3_DELETED);
   CHECK(!history->LastModifiedDate_.has_value());
   CHECK(!history->LastModifyingUser_.has_value());
   CHECK(!history->LastModifyingApplication_.has_value());
@@ -181,7 +166,7 @@ TEST_CASE("parse owner history") {
 TEST_CASE("parse owner history throws unknown enum value") {
   using owner_history = IFC2X3::IfcOwnerHistory;
 
-  constexpr auto const input =
+  constexpr auto const* const input =
       "#5=IFCOWNERHISTORY(#8,#9,$,.DELETE.,$,$,$,1591875543);";
 
   step::entry_parser p;

@@ -90,6 +90,7 @@ jobs:
 
       # ==== INSTALL ====
       - name: Install LLVM
+        if: matrix.config.os != 'macos-latest'
         env:
           DEBIAN_FRONTEND: noninteractive
         run: sudo apt-get update

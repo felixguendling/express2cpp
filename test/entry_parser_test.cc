@@ -6,6 +6,7 @@
 #include "IFC2X3/IfcBuildingElementProxy.h"
 #include "IFC2X3/IfcCartesianPoint.h"
 #include "IFC2X3/IfcDirection.h"
+#include "IFC2X3/IfcOwnerHistory.h"
 #include "IFC2X3/IfcShapeRepresentation.h"
 
 TEST_CASE("parse product") {
@@ -153,4 +154,37 @@ TEST_CASE("parse projection") {
   CHECK(reinterpret_cast<uintptr_t>(*proj.Axis_) == 5565);
   REQUIRE(proj.RefDirection_.has_value());
   CHECK(reinterpret_cast<uintptr_t>(*proj.RefDirection_) == 5566);
+}
+
+TEST_CASE("parse owner history") {
+  using owner_history = IFC2X3::IfcOwnerHistory;
+
+  constexpr auto const input =
+      "#5=IFCOWNERHISTORY(#8,#9,$,.DELETED.,$,$,$,1591875543);";
+
+  step::entry_parser p;
+  p.register_parsers<owner_history>();
+  auto const entry = p.parse(input);
+  REQUIRE(entry.has_value());
+  CHECK(entry->first.id_ == 5);
+  REQUIRE(nullptr !=
+          dynamic_cast<IFC2X3::IfcOwnerHistory*>(entry->second.get()));
+  auto const history =
+      dynamic_cast<IFC2X3::IfcOwnerHistory*>(entry->second.get());
+  CHECK(history->ChangeAction_ == IFC2X3::IfcChangeActionEnum::DELETED);
+  CHECK(!history->LastModifiedDate_.has_value());
+  CHECK(!history->LastModifyingUser_.has_value());
+  CHECK(!history->LastModifyingApplication_.has_value());
+  CHECK(history->CreationDate_ == 1591875543);
+}
+
+TEST_CASE("parse owner history throws unknown enum value") {
+  using owner_history = IFC2X3::IfcOwnerHistory;
+
+  constexpr auto const input =
+      "#5=IFCOWNERHISTORY(#8,#9,$,.DELETE.,$,$,$,1591875543);";
+
+  step::entry_parser p;
+  p.register_parsers<owner_history>();
+  CHECK_THROWS(p.parse(input));
 }

@@ -131,7 +131,7 @@ jobs:
           -DCMAKE_CXX_LINKER_FLAGS=${{ matrix.config.ldflags }}" \
           -DCMAKE_CXX_EXE_LINKER_FLAGS="${{ matrix.config.ldflags }} \
           -DCMAKE_BUILD_TYPE=${{ matrix.config.mode }} \
-          -DEXPRESS_LINT=${{ matrix.config.lint }}
+          -DEXPRESS2CPP_LINT=${{ matrix.config.lint }}
 
       - name: Build
         run: |

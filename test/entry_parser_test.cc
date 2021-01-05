@@ -196,7 +196,7 @@ TEST_CASE("parse property single value)"){
   step::entry_parser p;
   p.register_parsers<IFC2X3::IfcPropertySingleValue>();
   auto const entry = p.parse(input);
-
+q
   REQUIRE(entry.has_value());
   CHECK(entry->first.id_ == 564425);
   CHECK(entry->second->line_idx_ == 0);

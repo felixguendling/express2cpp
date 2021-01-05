@@ -266,7 +266,7 @@ void generate_source(std::ostream& out, schema const& s, type const& t) {
         }
       }
       out << "}\n";
-      out << "\n}  // namespace " << s.name_ << "\n";
+      out << "\n}  // namespace " << s.name_ << "\n\n\n";
 
       break;
 
@@ -291,10 +291,10 @@ void generate_source(std::ostream& out, schema const& s, type const& t) {
         out << "    case " << cista::hash(m) << "U: v = " << t.name_
             << "::" << (m == "NULL" ? "VNULL" : m) << "; break;\n";
       }
-      out << "}\n";
+      out << "  }\n";
       out << "  s = *end;\n";
-      out << "}";
-      out << "\n}  // namespace " << s.name_ << "\n";
+      out << "}\n\n";
+      out << "}  // namespace " << s.name_ << "\n\n\n";
       break;
   }
 }

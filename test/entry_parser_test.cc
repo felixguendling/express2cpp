@@ -172,4 +172,8 @@ TEST_CASE("parse owner history") {
   auto const history =
       dynamic_cast<IFC2X3::IfcOwnerHistory*>(entry->second.get());
   CHECK(history->ChangeAction_ == IFC2X3::IfcChangeActionEnum::DELETED);
+  CHECK(!history->LastModifiedDate_.has_value());
+  CHECK(!history->LastModifyingUser_.has_value());
+  CHECK(!history->LastModifyingApplication_.has_value());
+  CHECK(history->CreationDate_ == 1591875543);
 }

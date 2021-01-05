@@ -298,6 +298,8 @@ void generate_source(std::ostream& out, schema const& s, type const& t) {
       out << "}\n\n";
       out << "}  // namespace " << s.name_ << "\n\n\n";
       break;
+
+    default: /* skip */ break;
   }
 }
 

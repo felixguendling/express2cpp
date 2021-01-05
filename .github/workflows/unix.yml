@@ -131,12 +131,12 @@ jobs:
           -DCMAKE_CXX_LINKER_FLAGS=${{ matrix.config.ldflags }}" \
           -DCMAKE_CXX_EXE_LINKER_FLAGS="${{ matrix.config.ldflags }} \
           -DCMAKE_BUILD_TYPE=${{ matrix.config.mode }} \
-          -DNET_LINT=${{ matrix.config.lint }}
+          -DEXPRESS_LINT=${{ matrix.config.lint }}
 
       - name: Build
-        run:
+        run: |
           ./build/bin/buildcache -z
-          cmake --build build --target http-client net-web_server-sample net-wss_client-sample
+          cmake --build build --target express-test
           ./build/bin/buildcache -s
 
       # ==== TESTS ====

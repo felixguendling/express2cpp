@@ -6,6 +6,11 @@ set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 include(cmake/buildcache.cmake)
 include(cmake/pkg.cmake)
 
+option(EXPRESS2CPP_LINT "Run clang-tidy with the compiler." OFF)
+if (EXPRESS2CPP_LINT)
+    include(cmake/clang-tidy.cmake)
+endif ()
+
 configure_file(
         ${CMAKE_CURRENT_SOURCE_DIR}/test/test_dir.h.in
         ${CMAKE_BINARY_DIR}/generated/test_dir.h

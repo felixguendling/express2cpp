@@ -42,7 +42,6 @@ jobs:
             cc: clang
             mode: Release
             cxxflags: -stdlib=libc++
-            boostcxxflags: cxxflags=-stdlib=libc++
             os: macos-latest
             artifact: macos
           - name: GCC 10 Release
@@ -61,7 +60,6 @@ jobs:
             cc: clang-11
             mode: Release
             cxxflags: -stdlib=libc++
-            boostcxxflags: cxxflags=-stdlib=libc++
             ldflags: -lc++abi
             os: ubuntu-latest
           - name: Clang Tidy
@@ -69,7 +67,6 @@ jobs:
             cc: clang-11
             mode: Debug
             cxxflags: -stdlib=libc++
-            boostcxxflags: cxxflags=-stdlib=libc++
             ldflags: -lc++abi
             lint: true
             os: ubuntu-latest
@@ -144,7 +141,7 @@ jobs:
 
       # ==== TESTS ====
       - name: Run Tests
-        run: ./build/soro-test
+        run: ./build/express-test
 
       # ==== VALGRIND ====
       - name: Run Tests Valgrind

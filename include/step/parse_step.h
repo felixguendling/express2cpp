@@ -25,7 +25,8 @@ inline std::optional<utl::cstr> get_next_token(utl::cstr const s, char token) {
     return std::nullopt;
   }
 
-  auto pos = static_cast<char const*>(std::memchr(s.str, token, s.len));
+  auto const* const pos =
+      static_cast<char const*>(std::memchr(s.str, token, s.len));
   if (pos == nullptr) {
     return std::nullopt;
   }
@@ -34,7 +35,7 @@ inline std::optional<utl::cstr> get_next_token(utl::cstr const s, char token) {
 }
 
 inline void parse_step(utl::cstr& in, id_t& i) {
-  utl::verify(in.len > 1 && in[0] == '#' && std::isdigit(in[1]),
+  utl::verify(in.len > 1 && in[0] == '#' && (std::isdigit(in[1]) != 0),
               "expected id, got: {}", in.view());
   ++in;
   utl::parse_arg(in, i.id_);
@@ -42,13 +43,13 @@ inline void parse_step(utl::cstr& in, id_t& i) {
 
 template <typename T>
 void parse_step(utl::cstr& s, T*& ptr) {
-  step::id_t id;
+  auto id = step::id_t{};
   parse_step(s, id);
   ptr = reinterpret_cast<T*>(id.id_);
 }
 
 inline void parse_step(utl::cstr& s, double& val) {
-  char* end;
+  char* end = nullptr;
   val = std::strtod(s.str, &end);
   s.len -= end - s.str;
   s.str = end;

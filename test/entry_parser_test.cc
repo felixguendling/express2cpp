@@ -48,6 +48,10 @@ TEST_CASE("parse product") {
     auto const id_ok = reinterpret_cast<uintptr_t>(&ref) == 2U ||
                        reinterpret_cast<uintptr_t>(&ref) == 411U ||
                        reinterpret_cast<uintptr_t>(&ref) == 416U;
+    if (!id_ok) {
+      std::cout << "reinterpret_cast<uintptr_t>(&ref): "
+                << reinterpret_cast<uintptr_t>(&ref) << "\n";
+    }
     CHECK(id_ok);
   });
 }
@@ -76,6 +80,10 @@ TEST_CASE("parse share representation") {
     if constexpr (std::is_same_v<std::decay_t<decltype(ref)>,
                                  IFC2X3::IfcRepresentationItem>) {
       auto const id_ok = reinterpret_cast<uintptr_t>(&ref) == 96933U;
+      if (!id_ok) {
+        std::cout << "reinterpret_cast<uintptr_t>(&ref): "
+                  << reinterpret_cast<uintptr_t>(&ref) << "\n";
+      }
       CHECK(id_ok);
     }
   });

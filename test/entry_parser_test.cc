@@ -177,3 +177,14 @@ TEST_CASE("parse owner history") {
   CHECK(!history->LastModifyingApplication_.has_value());
   CHECK(history->CreationDate_ == 1591875543);
 }
+
+TEST_CASE("parse owner history throws unknown enum value") {
+  using owner_history = IFC2X3::IfcOwnerHistory;
+
+  constexpr auto const input =
+      "#5=IFCOWNERHISTORY(#8,#9,$,.DELETE.,$,$,$,1591875543);";
+
+  step::entry_parser p;
+  p.register_parsers<owner_history>();
+  CHECK_THROWS(p.parse(input));
+}

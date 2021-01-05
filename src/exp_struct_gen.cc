@@ -291,6 +291,8 @@ void generate_source(std::ostream& out, schema const& s, type const& t) {
         out << "    case " << cista::hash(m) << "U: v = " << t.name_
             << "::" << (m == "NULL" ? "VNULL" : m) << "; break;\n";
       }
+      out << "    default: utl::verify(false, \"expected enum value, got {}\", "
+             "str);\n";
       out << "  }\n";
       out << "  s = *end;\n";
       out << "}\n\n";

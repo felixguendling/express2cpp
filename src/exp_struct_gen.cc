@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <iostream>
 #include <map>
+#include <optional>
 #include <ostream>
 
 #include "boost/algorithm/string.hpp"

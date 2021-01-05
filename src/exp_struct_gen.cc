@@ -134,11 +134,7 @@ void generate_header(std::ostream& out, schema const& s, type const& t) {
     case data_type::ENUM:
       out << "enum class " << t.name_ << " {\n";
       for (auto const& [i, v] : utl::enumerate(t.details_)) {
-        if (v == "NULL") {
-          out << "  VNULL" << (i != t.details_.size() - 1 ? "," : "") << "\n";
-        } else {
-          out << "  " << v << (i != t.details_.size() - 1 ? "," : "") << "\n";
-        }
+        out << "  " << s.name_ << "_" << v << (i != t.details_.size() - 1 ? "," : "") << "\n";
       }
       out << "};\n";
       out << "void parse_step(utl::cstr&, " << t.name_ << "&);\n";
@@ -290,7 +286,7 @@ void generate_source(std::ostream& out, schema const& s, type const& t) {
       out << "  switch(cista::hash(str)) {\n";
       for (auto const& [i, m] : utl::enumerate(t.details_)) {
         out << "    case " << cista::hash(m) << "U: v = " << t.name_
-            << "::" << (m == "NULL" ? "VNULL" : m) << "; break;\n";
+            << "::" << s.name_ << "_" << m << "; break;\n";
       }
       out << "    default: utl::verify(false, \"expected enum value, got {}\", "
              "str);\n";

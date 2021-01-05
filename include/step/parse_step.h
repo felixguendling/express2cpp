@@ -45,7 +45,7 @@ template <typename T>
 void parse_step(utl::cstr& s, T*& ptr) {
   auto id = step::id_t{};
   parse_step(s, id);
-  ptr = reinterpret_cast<T*>(id.id_);
+  ptr = reinterpret_cast<T*>(static_cast<uintptr_t>(id.id_));
 }
 
 inline void parse_step(utl::cstr& s, double& val) {

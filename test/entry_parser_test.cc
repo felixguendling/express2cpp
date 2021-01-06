@@ -8,6 +8,8 @@
 #include "IFC2X3/IfcDirection.h"
 #include "IFC2X3/IfcOwnerHistory.h"
 #include "IFC2X3/IfcShapeRepresentation.h"
+#include "IFC2X3/IfcPropertySingleValue.h"
+#include "IFC2X3/IfcPropertyListValue.h"
 
 TEST_CASE("parse product") {
   using building_element_proxy = IFC2X3::IfcBuildingElementProxy;
@@ -172,4 +174,28 @@ TEST_CASE("parse owner history throws unknown enum value") {
   step::entry_parser p;
   p.register_parsers<owner_history>();
   CHECK_THROWS(p.parse(input));
+}
+
+TEST_CASE("parse property single value"){
+  constexpr auto const input = "#564425=IFCPROPERTYSINGLEVALUE('MaterialThickness','',IFCPOSITIVELENGTHMEASURE(0.),$);";
+
+  step::entry_parser p;
+  p.register_parsers<IFC2X3::IfcPropertySingleValue>();
+  auto const entry = p.parse(input);
+
+  REQUIRE(entry.has_value());
+  CHECK(entry->first.id_ == 564425);
+  CHECK(entry->second->line_idx_ == 0);
+}
+
+TEST_CASE("parse property list value"){
+  constexpr auto const input = "#564427=IFCPROPERTYLISTVALUE('NominalDiameter','',$,$);";
+
+  step::entry_parser p;
+  p.register_parsers<IFC2X3::IfcPropertyListValue>();
+  auto const entry = p.parse(input);
+
+  REQUIRE(entry.has_value());
+  CHECK(entry->first.id_ == 564427);
+  CHECK(entry->second->line_idx_ == 0);
 }

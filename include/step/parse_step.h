@@ -1,6 +1,9 @@
 #pragma once
 
 #include <optional>
+#include <variant>
+
+#include "boost/algorithm/string.hpp"
 
 #include "cista/type_hash/type_name.h"
 
@@ -87,8 +90,12 @@ inline void parse_step(utl::cstr& s, std::string& str) {
 
 template <typename T>
 std::enable_if_t<is_collection<T>::value> parse_step(utl::cstr& s, T& v) {
-  utl::verify(s.len != 0 && s[0] == '(', "set begins with (, got {}",
-              s.len > 0 ? s[0] : '?');
+  if (s.len != 0 && s[0] == '$') {  // invalid IFC handled gracefully
+    ++s;
+    return;
+  }
+
+  utl::verify(s.len != 0 && s[0] == '(', "set begins with (, got {}", s.view());
   ++s;
   auto i = 0U;
   while (s.len > 0 && s[0] != ')') {

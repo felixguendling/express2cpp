@@ -36,11 +36,7 @@ int main(int argc, char** argv) {
     auto header_out = std::ofstream{
         (header_path / (t.name_ + ".h")).generic_string().c_str()};
     express::generate_header(header_out, schema, t);
-
-    if (t.data_type_ == express::data_type::ENTITY ||
-        t.data_type_ == express::data_type::ENUM) {
-      express::generate_source(source_out, schema, t);
-    }
+    express::generate_source(source_out, schema, t);
   }
 
   source_out << "\n\n#include \"step/entry_parser.h\"\n";

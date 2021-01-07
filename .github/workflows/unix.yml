@@ -89,7 +89,7 @@ jobs:
       - uses: seanmiddleditch/gha-setup-ninja@master
 
       # ==== INSTALL ====
-      - name: Install LLVM
+      - name: Upgrade Packages
         if: matrix.config.os != 'macos-latest'
         env:
           DEBIAN_FRONTEND: noninteractive

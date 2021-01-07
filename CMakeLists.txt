@@ -4,18 +4,12 @@ project(express2cpp)
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 
 include(cmake/buildcache.cmake)
-
-set(Boost_USE_STATIC_LIBS ON)
-set(Boost_USE_MULTITHREADED ON)
-if (MSVC)
-    set(Boost_USE_STATIC_RUNTIME ON)
-endif ()
-find_package(Boost COMPONENTS filesystem REQUIRED)
-find_package(Threads)
-link_directories(${Boost_LIBRARY_DIRS})
-include_directories(SYSTEM ${Boost_INCLUDE_DIR})
-
 include(cmake/pkg.cmake)
+
+option(EXPRESS2CPP_LINT "Run clang-tidy with the compiler." OFF)
+if (EXPRESS2CPP_LINT)
+    include(cmake/clang-tidy.cmake)
+endif ()
 
 configure_file(
         ${CMAKE_CURRENT_SOURCE_DIR}/test/test_dir.h.in
@@ -27,7 +21,7 @@ target_include_directories(ifc-generated INTERFACE ${CMAKE_BINARY_DIR}/generated
 file(GLOB express-lib-files src/*.cc)
 add_library(express-lib ${express-lib-files})
 target_include_directories(express-lib PUBLIC include)
-target_link_libraries(express-lib ${Boost_LIBRARIES} cista utl)
+target_link_libraries(express-lib boost-filesystem boost cista utl)
 target_compile_features(express-lib PUBLIC cxx_std_17)
 
 file(GLOB express-gen-files exe/express_gen.cc)
@@ -42,9 +36,13 @@ function(express2cpp express-file lib)
             OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${lib}/${lib}.cc
     )
     add_library(${lib} ${CMAKE_CURRENT_BINARY_DIR}/${lib}/${lib}.cc)
-    target_link_libraries(${lib} utl cista)
-    target_include_directories(${lib} PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/${lib}/include ${CMAKE_CURRENT_SOURCE_DIR}/include)
+    if (MSVC)
+        target_compile_options(${lib} PRIVATE /bigobj)
+    endif ()
+    target_link_libraries(${lib} utl cista boost)
+    target_include_directories(${lib} PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/${lib}/include ${CMAKE_CURRENT_FUNCTION_LIST_DIR}/include)
     target_compile_features(${lib} PUBLIC cxx_std_17)
+    set_target_properties(${lib} PROPERTIES CXX_CLANG_TIDY "")
 endfunction()
 
 express2cpp(test/ifc23.txt ifc23)

@@ -14,7 +14,7 @@
 
 using namespace express;
 
-constexpr auto const str =
+constexpr auto const* const str =
     // "(*\n"
     // "    Comment\n"
     // "*)\n\n"
@@ -101,7 +101,7 @@ constexpr auto const str =
     "END_SCHEMA";
 
 TEST_CASE("abstract supertype") {
-  auto constexpr const s =
+  constexpr auto const* const s =
       "SCHEMA IFC2X3;\n"
       "\n"
       "ENTITY IfcTimeSeries\n"
@@ -160,7 +160,7 @@ TEST_CASE("abstract supertype") {
 }
 
 TEST_CASE("express parser: ifc address") {
-  constexpr auto const input = R"(
+  constexpr auto const* const input = R"(
 SCHEMA IFC2X3;
 
 ENTITY IfcAddress
@@ -188,7 +188,7 @@ END_SCHEMA
 }
 
 TEST_CASE("express parser: LIST OF") {
-  constexpr auto const input = R"(
+  constexpr auto const* const input = R"(
 SCHEMA IFC2X3;
 
 ENTITY IfcTypeProduct

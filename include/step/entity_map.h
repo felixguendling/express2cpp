@@ -21,11 +21,16 @@ namespace step {
 struct entity_map {
   explicit entity_map(entry_parser& parser, utl::cstr s) {
     for (auto [line_idx, line] : utl::enumerate(utl::lines{s})) {
-      lines_.emplace_back(line.view());
-      auto p = parser.parse(line);
-      if (p.has_value()) {
-        auto& [id, entity] = *p;
-        add_entity(id, line_idx, std::move(entity));
+      try {
+        lines_.emplace_back(line.view());
+        auto p = parser.parse(line);
+        if (p.has_value()) {
+          auto& [id, entity] = *p;
+          add_entity(id, line_idx, std::move(entity));
+        }
+      } catch (std::exception const& e) {
+        std::cerr << "unable to parse line " << (line_idx + 1) << ": "
+                  << line.view() << "\n";
       }
     }
     resolve_all();
@@ -35,7 +40,7 @@ struct entity_map {
 
   void add_entity(step::id_t const& id, unsigned const line_idx,
                   entity_ptr&& e) {
-    auto const e_ptr = entity_mem_.emplace_back(std::move(e)).get();
+    auto* const e_ptr = entity_mem_.emplace_back(std::move(e)).get();
 
     if (id_to_entity_.size() <= id.id_) {
       id_to_entity_.resize(id.id_ + 1);
@@ -57,7 +62,7 @@ struct entity_map {
   template <typename T>
   T const& get_entity(step::id_t const& id) {
     utl::verify(id_to_entity_.size() > id.id_, "invalid id");
-    auto const entity = dynamic_cast<T*>(id_to_entity_[id.id_]);
+    auto const* const entity = dynamic_cast<T*>(id_to_entity_[id.id_]);
     utl::verify(entity != nullptr, "bad cast");
     return *entity;
   }

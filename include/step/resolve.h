@@ -3,6 +3,7 @@
 #include <optional>
 #include <vector>
 
+#include "step/has_data.h"
 #include "step/is_collection.h"
 #include "step/root_entity.h"
 
@@ -20,6 +21,12 @@ std::enable_if_t<is_collection<T>::value> resolve(
   for (auto& el : vec) {
     resolve(v, el);
   }
+}
+
+template <typename T>
+std::enable_if_t<has_data<T>::value> resolve(std::vector<root_entity*> const& v,
+                                             T& select) {
+  select.resolve(v);
 }
 
 template <typename T>

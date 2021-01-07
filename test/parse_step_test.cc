@@ -9,14 +9,14 @@ TEST_CASE("parse basic data types") {
   using step::parse_step;
   SUBCASE("int") {
     SUBCASE("before comma") {
-      int i;
+      int i{};
       auto s = utl::cstr{"123,"};
       parse_step(s, i);
       CHECK(i == 123);
       CHECK(s.view() == ",");
     }
     SUBCASE("before bracket") {
-      int i;
+      int i{};
       auto s = utl::cstr{"123)"};
       parse_step(s, i);
       CHECK(i == 123);
@@ -25,28 +25,28 @@ TEST_CASE("parse basic data types") {
   }
   SUBCASE("double") {
     SUBCASE("before comma") {
-      double d;
+      double d{};
       auto s = utl::cstr{"123,"};
       parse_step(s, d);
       CHECK(d == 123);
       CHECK(s.view() == ",");
     }
     SUBCASE("before bracket") {
-      double d;
+      double d{};
       auto s = utl::cstr{"123)"};
       parse_step(s, d);
       CHECK(d == 123);
       CHECK(s.view() == ")");
     }
     SUBCASE("E notation") {
-      double d;
+      double d{};
       auto s = utl::cstr{"123E2)"};
       parse_step(s, d);
       CHECK(d == 12300);
       CHECK(s.view() == ")");
     }
     SUBCASE("full test") {
-      double d;
+      double d{};
       auto s = utl::cstr{"0.12E1)"};
       parse_step(s, d);
       CHECK(d == 1.2);
@@ -85,7 +85,7 @@ TEST_CASE("parse basic data types") {
     }
   }
   SUBCASE("ptr") {
-    void* ptr;
+    void* ptr{};
     auto s = utl::cstr{"#123"};
     parse_step(s, ptr);
     CHECK(reinterpret_cast<uintptr_t>(ptr) == 123);
@@ -169,7 +169,7 @@ TEST_CASE("parse ifc") {
   auto parser = step::entry_parser{};
   IFC2X3::register_all_types(parser);
   auto model = step::entity_map{parser, ifc_input};
-  auto const flow_ctrl =
+  auto const& flow_ctrl =
       model.get_entity<IFC2X3::IfcFlowController>(step::id_t{96945});
   CHECK(flow_ctrl.GlobalId_ == "0Gkk91VZX968DF0GjbXoN4");
   REQUIRE(flow_ctrl.Representation_.has_value());
@@ -178,4 +178,30 @@ TEST_CASE("parse ifc") {
   REQUIRE(repr->Representations_.at(0)->RepresentationType_.has_value());
   CHECK(repr->Representations_.at(0)->RepresentationType_.value() ==
         "MappedRepresentation");
+}
+
+#include "IFC2X3/IfcColourRgb.h"
+#include "IFC2X3/IfcSurfaceStyle.h"
+#include "IFC2X3/IfcSurfaceStyleRendering.h"
+
+TEST_CASE("parse id select") {
+  constexpr auto const* const ifc_input =
+      R"(#200158=IFCCOLOURRGB($,0.200000,0.200000,0.200000);
+#200159=IFCSURFACESTYLERENDERING(#200158,$,$,$,$,$,$,$,.METAL.);
+#200160=IFCSURFACESTYLE('Default Surface',.BOTH.,(#200159));
+#200161=IFCPRESENTATIONSTYLEASSIGNMENT((#200160));)";
+
+  auto parser = step::entry_parser{};
+  IFC2X3::register_all_types(parser);
+  auto model = step::entity_map{parser, ifc_input};
+
+  auto const& surface_style =
+      model.get_entity<IFC2X3::IfcSurfaceStyle>(step::id_t{200160});
+  REQUIRE(surface_style.Styles_.at(0).data_.index() == 0U);
+
+  auto* const shading = std::get<0>(surface_style.Styles_.at(0).data_);
+  REQUIRE(shading->SurfaceColour_ != nullptr);
+  CHECK(shading->SurfaceColour_->Red_ == 0.2);
+  CHECK(shading->SurfaceColour_->Green_ == 0.2);
+  CHECK(shading->SurfaceColour_->Blue_ == 0.2);
 }

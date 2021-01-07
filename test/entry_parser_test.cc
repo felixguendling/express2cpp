@@ -6,12 +6,15 @@
 #include "IFC2X3/IfcBuildingElementProxy.h"
 #include "IFC2X3/IfcCartesianPoint.h"
 #include "IFC2X3/IfcDirection.h"
+#include "IFC2X3/IfcOwnerHistory.h"
+#include "IFC2X3/IfcPropertyListValue.h"
+#include "IFC2X3/IfcPropertySingleValue.h"
 #include "IFC2X3/IfcShapeRepresentation.h"
 
 TEST_CASE("parse product") {
   using building_element_proxy = IFC2X3::IfcBuildingElementProxy;
 
-  constexpr auto const input =
+  constexpr auto const* const input =
       "#410 = IFCBUILDINGELEMENTPROXY('2K5zlWhbnD_Pplf7Wq7h2T', #2, "
       "'Platzhalter:88209840', $, $, #411, #416, 'Tag:88209840', $);";
 
@@ -42,19 +45,12 @@ TEST_CASE("parse product") {
   CHECK(bep.Tag_ == "Tag:88209840");
 
   CHECK(!bep.CompositionType_.has_value());
-
-  bep.for_each_ref([](auto&& ref) {
-    auto const id_ok = reinterpret_cast<uintptr_t>(&ref) == 2U ||
-                       reinterpret_cast<uintptr_t>(&ref) == 411U ||
-                       reinterpret_cast<uintptr_t>(&ref) == 416U;
-    CHECK(id_ok);
-  });
 }
 
 TEST_CASE("parse share representation") {
   using shape_representation = IFC2X3::IfcShapeRepresentation;
 
-  constexpr auto const input =
+  constexpr auto const* const input =
       "#96944 = IFCSHAPEREPRESENTATION(#20, 'Body', 'MappedRepresentation', "
       "(#96933));";
 
@@ -70,20 +66,12 @@ TEST_CASE("parse share representation") {
   CHECK(*bep.RepresentationType_ == "MappedRepresentation");
   CHECK(bep.Items_.size() == 1);
   CHECK(reinterpret_cast<uintptr_t>(bep.Items_[0]) == 96933U);
-
-  bep.for_each_ref([](auto&& ref) {
-    if constexpr (std::is_same_v<std::decay_t<decltype(ref)>,
-                                 IFC2X3::IfcRepresentationItem>) {
-      auto const id_ok = reinterpret_cast<uintptr_t>(&ref) == 96933U;
-      CHECK(id_ok);
-    }
-  });
 }
 
 TEST_CASE("parse cartesian point 1") {
   using vertex = IFC2X3::IfcCartesianPoint;
 
-  constexpr auto const input =
+  constexpr auto const* const input =
       "#5466 = IFCCARTESIANPOINT((-73910.476024,65619.415293,49080.450753));";
 
   step::entry_parser p;
@@ -101,7 +89,7 @@ TEST_CASE("parse cartesian point 1") {
 TEST_CASE("parse cartesian point 2") {
   using vertex = IFC2X3::IfcCartesianPoint;
 
-  constexpr auto const input =
+  constexpr auto const* const input =
       "#16783 = IFCCARTESIANPOINT((-29750.345510,68710.165565,53116.953431));";
 
   step::entry_parser p;
@@ -119,7 +107,7 @@ TEST_CASE("parse cartesian point 2") {
 TEST_CASE("parse direction") {
   using direction = IFC2X3::IfcDirection;
 
-  constexpr auto const input =
+  constexpr auto const* const input =
       "#5574 = IFCDIRECTION((0.000000,0.000000,1.000000));";
 
   step::entry_parser p;
@@ -138,7 +126,7 @@ TEST_CASE("parse direction") {
 TEST_CASE("parse projection") {
   using projection = IFC2X3::IfcAxis2Placement3D;
 
-  constexpr auto const input =
+  constexpr auto const* const input =
       "#5563 = IFCAXIS2PLACEMENT3D(#5564, #5565, #5566);";
 
   step::entry_parser p;
@@ -147,10 +135,81 @@ TEST_CASE("parse projection") {
   REQUIRE(entry.has_value());
   CHECK(entry->first.id_ == 5563);
   REQUIRE(nullptr != dynamic_cast<projection*>(entry->second.get()));
-  auto const proj = *dynamic_cast<projection*>(entry->second.get());
+  auto const& proj = *dynamic_cast<projection*>(entry->second.get());
   CHECK(reinterpret_cast<uintptr_t>(proj.Location_) == 5564);
   REQUIRE(proj.Axis_.has_value());
   CHECK(reinterpret_cast<uintptr_t>(*proj.Axis_) == 5565);
   REQUIRE(proj.RefDirection_.has_value());
   CHECK(reinterpret_cast<uintptr_t>(*proj.RefDirection_) == 5566);
+}
+
+TEST_CASE("parse owner history") {
+  using owner_history = IFC2X3::IfcOwnerHistory;
+
+  constexpr auto const* const input =
+      "#5=IFCOWNERHISTORY(#8,#9,$,.DELETED.,$,$,$,1591875543);";
+
+  step::entry_parser p;
+  p.register_parsers<owner_history>();
+  auto const entry = p.parse(input);
+  REQUIRE(entry.has_value());
+  CHECK(entry->first.id_ == 5);
+  REQUIRE(nullptr !=
+          dynamic_cast<IFC2X3::IfcOwnerHistory*>(entry->second.get()));
+  auto const* const history =
+      dynamic_cast<IFC2X3::IfcOwnerHistory*>(entry->second.get());
+  CHECK(history->ChangeAction_ == IFC2X3::IfcChangeActionEnum::IFC2X3_DELETED);
+  CHECK(!history->LastModifiedDate_.has_value());
+  CHECK(!history->LastModifyingUser_.has_value());
+  CHECK(!history->LastModifyingApplication_.has_value());
+  CHECK(history->CreationDate_ == 1591875543);
+}
+
+TEST_CASE("parse owner history throws unknown enum value") {
+  using owner_history = IFC2X3::IfcOwnerHistory;
+
+  constexpr auto const* const input =
+      "#5=IFCOWNERHISTORY(#8,#9,$,.DELETE.,$,$,$,1591875543);";
+
+  step::entry_parser p;
+  p.register_parsers<owner_history>();
+  CHECK_THROWS(p.parse(input));
+}
+
+TEST_CASE("parse property single value") {
+  using prop_single_value = IFC2X3::IfcPropertySingleValue;
+
+  constexpr auto const* const input =
+      R"(#564425=IFCPROPERTYSINGLEVALUE('MaterialThickness','',IFCPOSITIVELENGTHMEASURE(86.),$);)";
+
+  step::entry_parser p;
+  p.register_parsers<IFC2X3::IfcPropertySingleValue>();
+  auto const entry = p.parse(input);
+
+  REQUIRE(entry.has_value());
+  CHECK(entry->first.id_ == 564425);
+
+  auto const* const val = dynamic_cast<prop_single_value*>(entry->second.get());
+  REQUIRE(val != nullptr);
+  REQUIRE(val->NominalValue_.has_value());
+  REQUIRE(std::holds_alternative<IFC2X3::IfcMeasureValue>(
+      val->NominalValue_->data_));
+
+  auto const& measure_val =
+      std::get<IFC2X3::IfcMeasureValue>(val->NominalValue_->data_);
+  CHECK(measure_val.data_.index() == 11);
+  CHECK(std::get<11>(measure_val.data_) == 86);
+}
+
+TEST_CASE("parse property list value") {
+  constexpr auto const* const input =
+      R"(#564427=IFCPROPERTYLISTVALUE('NominalDiameter','',$,$);)";
+
+  step::entry_parser p;
+  p.register_parsers<IFC2X3::IfcPropertyListValue>();
+  auto const entry = p.parse(input);
+
+  REQUIRE(entry.has_value());
+  CHECK(entry->first.id_ == 564427);
+  CHECK(entry->second->line_idx_ == 0);
 }

@@ -19,3 +19,10 @@ IFC2X3::register_all_types(parser);
 auto model = step::entity_map{parser, ifc_input};
 model.get_entity<IFC2X3::IfcProduct>(step::id_t{0});
 ```
+
+# Supported Targets
+
+  - GCC 10.2 (10.1 not working!)
+  - Clang 11 (previous versions not tested)
+  - Apple Clang 12 (previous versions not tested)
+  - MSVC Latest (previous versions not tested)

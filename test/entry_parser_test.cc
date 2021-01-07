@@ -176,6 +176,19 @@ TEST_CASE("parse owner history throws unknown enum value") {
   CHECK_THROWS(p.parse(input));
 }
 
+TEST_CASE("parse positive length measure") {
+  constexpr auto const* const input = "IFCPOSITIVELENGTHMEASURE(86.)";
+
+  IFC2X3::IfcValue v;
+  auto s = utl::cstr{input};
+  parse_step(s, v);
+
+  CHECK(v.data_.index() == 0);
+  CHECK(std::get<11>(std::get<IFC2X3::IfcMeasureValue>(v.data_).data_) == 86);
+
+  CHECK(s.empty());
+}
+
 TEST_CASE("parse property single value") {
   using prop_single_value = IFC2X3::IfcPropertySingleValue;
 

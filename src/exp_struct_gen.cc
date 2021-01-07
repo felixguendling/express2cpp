@@ -1,7 +1,6 @@
 #include "express/exp_struct_gen.h"
 
 #include <algorithm>
-#include <iostream>
 #include <map>
 #include <optional>
 #include <ostream>
@@ -11,6 +10,7 @@
 #include "cista/hash.h"
 
 #include "utl/enumerate.h"
+#include "utl/verify.h"
 
 namespace express {
 
@@ -32,8 +32,8 @@ std::optional<std::string> is_special(schema const& s,
       case data_type::STRING: return "std::string";
       case data_type::INTEGER: return "int";
       case data_type::ENUM: return type_name;
-      case data_type::ENTITY:
-      case data_type::SELECT: return std::nullopt;
+      case data_type::ENTITY: return std::nullopt;
+      case data_type::SELECT: return type_name;
       case data_type::UNKOWN: throw std::runtime_error{"unkown type"};
     }
   }
@@ -44,8 +44,32 @@ std::optional<std::string> is_special(schema const& s,
   return std::nullopt;
 }
 
+bool is_value_type(schema const& s, type const& t) {
+  auto const it = s.type_map_.find(t.name_);
+  utl::verify(it != end(s.type_map_), "type {} not found in type map", t.name_);
+  switch (it->second->data_type_) {
+    case data_type::ALIAS:
+      utl::verify(t.alias_ != t.name_, "infinite alias loop for {}", t.name_);
+      return is_value_type(s, *s.type_map_.at(t.alias_));
+
+    case data_type::BOOL:
+    case data_type::LOGICAL:
+    case data_type::REAL:
+    case data_type::NUMBER:
+    case data_type::STRING:
+    case data_type::INTEGER:
+    case data_type::ENUM: [[fallthrough]];
+    case data_type::SELECT: return true;
+
+    case data_type::ENTITY: return false;
+
+    case data_type::UNKOWN: [[fallthrough]];
+    default: throw std::runtime_error{"unkown type"};
+  }
+}
+
 void generate_header(std::ostream& out, schema const& s, type const& t) {
-  out << "#pragma once\n";
+  out << "#pragma once\n\n";
 
   auto const uses_optional =
       std::any_of(begin(t.members_), end(t.members_),
@@ -85,7 +109,9 @@ void generate_header(std::ostream& out, schema const& s, type const& t) {
   }
   if (t.data_type_ == data_type::SELECT) {
     for (auto const& d : t.details_) {
-      out << "#include \"" << s.name_ << "/" << d << ".h\"\n";
+      if (is_value_type(s, *s.type_map_.at(d))) {
+        out << "#include \"" << s.name_ << "/" << d << ".h\"\n";
+      }
     }
   }
   if (t.data_type_ == data_type::ALIAS) {
@@ -94,7 +120,9 @@ void generate_header(std::ostream& out, schema const& s, type const& t) {
   if (t.data_type_ == data_type::ENTITY) {
     for (auto const& m : t.members_) {
       if (auto const it = s.type_map_.find(m.type_);
-          it != end(s.type_map_) && it->second->data_type_ == data_type::ENUM) {
+          it != end(s.type_map_) &&
+          (it->second->data_type_ == data_type::ENUM ||
+           it->second->data_type_ == data_type::SELECT)) {
         out << "#include \"" << s.name_ << "/" << it->second->name_ << ".h\"\n";
       }
     }
@@ -120,11 +148,22 @@ void generate_header(std::ostream& out, schema const& s, type const& t) {
       break;
 
     case data_type::SELECT:
-      out << "using " << t.name_ << " = std::variant<\n";
-      for (auto const& [i, v] : utl::enumerate(t.details_)) {
-        out << "  " << v << (i != t.details_.size() - 1 ? "," : "") << "\n";
+      for (auto const& m : t.details_) {
+        if (!is_value_type(s, *s.type_map_.at(m))) {
+          out << "struct " << m << ";\n";
+        }
       }
-      out << ">;\n";
+      out << "\nstruct " << t.name_ << " {\n";
+      out << "  friend void parse_step(utl::cstr&, " << t.name_ << "&);\n";
+      out << "  void resolve(std::vector<step::root_entity*> const&);\n\n";
+      out << "  std::variant<\n";
+      for (auto const& [i, v] : utl::enumerate(t.details_)) {
+        out << "    " << v << (!is_value_type(s, *s.type_map_.at(v)) ? "*" : "")
+            << (i != t.details_.size() - 1 ? "," : "") << "\n";
+      }
+      out << "  > data_;\n";
+      out << "  step::id_t tmp_id_{std::numeric_limits<unsigned>::max()};\n";
+      out << "};";
       break;
 
     case data_type::ALIAS:
@@ -198,6 +237,98 @@ void generate_header(std::ostream& out, schema const& s, type const& t) {
 
 void generate_source(std::ostream& out, schema const& s, type const& t) {
   switch (t.data_type_) {
+    case data_type::SELECT:
+      out << "#include \"" << s.name_ << "/" << t.name_ << ".h\"\n\n"
+          << "#include \"utl/parser/cstr.h\"\n"
+          << "#include \"utl/verify.h\"\n\n"
+          << "#include \"step/parse_step.h\"\n"
+          << "#include \"step/assign_variant_entity.h\"\n"
+          << "#include \"step/resolve.h\"\n\n"
+          << "namespace " << s.name_ << " {\n\n";
+      out << "void parse_step(utl::cstr& s, " << t.name_ << "& e) {\n";
+      out << "  using step::parse_step;\n";
+      out << "  if (s.len != 0 && s[0] == '#') {\n";
+      out << "    parse_step(s, e.tmp_id_);\n";
+      out << "    return;\n";
+      out << "  }\n";
+      if (std::any_of(begin(t.details_), end(t.details_),
+                      [&](std::string const& m) {
+                        return is_value_type(s, *s.type_map_.at(m));
+                      })) {
+        out << "  auto const name_end = step::get_next_token(s, '(');\n";
+        out << R"(  utl::verify(name_end.has_value(), "expected SELECT name, got {}", s.view());)"
+            << "\n";
+        out << R"(  auto const name = std::string_view{s.str, static_cast<std::size_t>(name_end->str - s.str - 1)};)"
+            << "\n";
+        out << "  s = *name_end;\n";
+        out << "  switch(cista::hash(name)) {\n";
+
+        std::function<void(std::vector<std::pair<type const*, std::size_t>>)>
+            list_cases =
+                [&](std::vector<std::pair<type const*, std::size_t>> const&
+                        chain) {
+                  if (chain.back().first->data_type_ == data_type::SELECT) {
+                    for (auto const& [i, m] :
+                         utl::enumerate(chain.back().first->details_)) {
+                      auto const m_type = *s.type_map_.at(m);
+                      if (!is_value_type(s, m_type)) {
+                        continue;  // handled by ID case
+                      }
+                      auto next_chain = chain;
+                      next_chain.back().second = i;
+                      next_chain.emplace_back(
+                          &m_type, std::numeric_limits<std::size_t>::max());
+                      list_cases(next_chain);
+                    }
+                  } else {
+                    auto const& [last_type, last_id] = chain.back();
+                    out << "    case "
+                        << cista::hash(boost::to_upper_copy<std::string>(
+                               last_type->name_))
+                        << "U"
+                        << ": { " << s.name_ << "::" << last_type->name_
+                        << " v; parse_step(s, v); e = ";
+                    for (auto const& [i, entry] : utl::enumerate(chain)) {
+                      if (i == chain.size() - 1) {
+                        break;
+                      }
+                      auto const& [el_t, select_index] = entry;
+                      out << s.name_ << "::" << el_t->name_ << "{"
+                          << "decltype(std::declval<" << s.name_
+                          << "::" << el_t->name_
+                          << ">().data_){std::in_place_index_t<" << select_index
+                          << ">{}, ";
+                    }
+                    out << "v";
+                    for (auto const& [i, c] : utl::enumerate(chain)) {
+                      if (i == chain.size() - 1) {
+                        break;
+                      }
+                      out << "}}";
+                    }
+                    out << ";";
+                    out << " break; }\n";
+                  }
+                };
+        list_cases({{&t, std::numeric_limits<std::size_t>::max()}});
+
+        out << "    default: utl::verify(false, \"unable to parse select "
+            << t.name_
+            << ", got name '{}', hash={}\", name, cista::hash(name));\n";
+        out << "  }\n";
+        out << R"(  utl::verify(s.len != 0 && s[0] == ')', "expected select end ')', got {}", s.view());)"
+            << "\n";
+        out << "  ++s;";
+      }
+      out << "}\n\n";
+      out << "void " << t.name_
+          << "::resolve(std::vector<step::root_entity*> const& m) {\n";
+      out << "  if (tmp_id_ == step::id_t::invalid()) { return; }\n";
+      out << "  step::assign_variant_entity(*this, m.at(tmp_id_.id_));";
+      out << "}\n";
+      out << "\n}  // namespace " << s.name_ << "\n\n\n";
+      break;
+
     case data_type::ENTITY:
       out << "#include \"" << s.name_ << "/" << t.name_ << ".h\"\n\n"
           << "#include \"utl/parser/cstr.h\"\n\n"
@@ -223,8 +354,10 @@ void generate_source(std::ostream& out, schema const& s, type const& t) {
         out << "  " << t.subtype_of_ << "::resolve(m);\n";
       }
       for (auto const& m : t.members_) {
-        if (auto const data_type = is_special(s, m.type_);
-            !data_type.has_value()) {
+        if (auto const member_type_it = s.type_map_.find(m.type_);
+            member_type_it != end(s.type_map_) &&
+            (member_type_it->second->data_type_ == data_type::ENTITY ||
+             member_type_it->second->data_type_ == data_type::SELECT)) {
           out << "  step::resolve(m, " << m.name_ << "_);\n";
         }
       }

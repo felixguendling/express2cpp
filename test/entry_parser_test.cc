@@ -176,10 +176,11 @@ TEST_CASE("parse owner history throws unknown enum value") {
   CHECK_THROWS(p.parse(input));
 }
 
-TEST_CASE("parse property single value" * doctest::skip()) {
+TEST_CASE("parse property single value") {
+  using prop_single_value = IFC2X3::IfcPropertySingleValue;
+
   constexpr auto const* const input =
-      "#564425=IFCPROPERTYSINGLEVALUE('MaterialThickness','',"
-      "IFCPOSITIVELENGTHMEASURE(0.),$);";
+      R"(#564425=IFCPROPERTYSINGLEVALUE('MaterialThickness','',IFCPOSITIVELENGTHMEASURE(86.),$);)";
 
   step::entry_parser p;
   p.register_parsers<IFC2X3::IfcPropertySingleValue>();
@@ -187,12 +188,22 @@ TEST_CASE("parse property single value" * doctest::skip()) {
 
   REQUIRE(entry.has_value());
   CHECK(entry->first.id_ == 564425);
-  CHECK(entry->second->line_idx_ == 0);
+
+  auto const* const val = dynamic_cast<prop_single_value*>(entry->second.get());
+  REQUIRE(val != nullptr);
+  REQUIRE(val->NominalValue_.has_value());
+  REQUIRE(std::holds_alternative<IFC2X3::IfcMeasureValue>(
+      val->NominalValue_->data_));
+
+  auto const& measure_val =
+      std::get<IFC2X3::IfcMeasureValue>(val->NominalValue_->data_);
+  CHECK(measure_val.data_.index() == 11);
+  CHECK(std::get<11>(measure_val.data_) == 86);
 }
 
-TEST_CASE("parse property list value" * doctest::skip()) {
+TEST_CASE("parse property list value") {
   constexpr auto const* const input =
-      "#564427=IFCPROPERTYLISTVALUE('NominalDiameter','',$,$);";
+      R"(#564427=IFCPROPERTYLISTVALUE('NominalDiameter','',$,$);)";
 
   step::entry_parser p;
   p.register_parsers<IFC2X3::IfcPropertyListValue>();

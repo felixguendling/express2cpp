@@ -42,6 +42,7 @@ function(express2cpp express-file lib)
     target_link_libraries(${lib} utl cista)
     target_include_directories(${lib} PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/${lib}/include ${CMAKE_CURRENT_FUNCTION_LIST_DIR}/include)
     target_compile_features(${lib} PUBLIC cxx_std_17)
+    set_target_properties(${lib} PROPERTIES CXX_CLANG_TIDY "")
 endfunction()
 
 express2cpp(test/ifc23.txt ifc23)

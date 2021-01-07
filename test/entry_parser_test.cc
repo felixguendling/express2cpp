@@ -7,9 +7,9 @@
 #include "IFC2X3/IfcCartesianPoint.h"
 #include "IFC2X3/IfcDirection.h"
 #include "IFC2X3/IfcOwnerHistory.h"
-#include "IFC2X3/IfcShapeRepresentation.h"
-#include "IFC2X3/IfcPropertySingleValue.h"
 #include "IFC2X3/IfcPropertyListValue.h"
+#include "IFC2X3/IfcPropertySingleValue.h"
+#include "IFC2X3/IfcShapeRepresentation.h"
 
 TEST_CASE("parse product") {
   using building_element_proxy = IFC2X3::IfcBuildingElementProxy;
@@ -176,8 +176,10 @@ TEST_CASE("parse owner history throws unknown enum value") {
   CHECK_THROWS(p.parse(input));
 }
 
-TEST_CASE("parse property single value"){
-  constexpr auto const input = "#564425=IFCPROPERTYSINGLEVALUE('MaterialThickness','',IFCPOSITIVELENGTHMEASURE(0.),$);";
+TEST_CASE("parse property single value" * doctest::skip()) {
+  constexpr auto const* const input =
+      "#564425=IFCPROPERTYSINGLEVALUE('MaterialThickness','',"
+      "IFCPOSITIVELENGTHMEASURE(0.),$);";
 
   step::entry_parser p;
   p.register_parsers<IFC2X3::IfcPropertySingleValue>();
@@ -188,8 +190,9 @@ TEST_CASE("parse property single value"){
   CHECK(entry->second->line_idx_ == 0);
 }
 
-TEST_CASE("parse property list value"){
-  constexpr auto const input = "#564427=IFCPROPERTYLISTVALUE('NominalDiameter','',$,$);";
+TEST_CASE("parse property list value" * doctest::skip()) {
+  constexpr auto const* const input =
+      "#564427=IFCPROPERTYLISTVALUE('NominalDiameter','',$,$);";
 
   step::entry_parser p;
   p.register_parsers<IFC2X3::IfcPropertyListValue>();

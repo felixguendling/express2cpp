@@ -179,3 +179,29 @@ TEST_CASE("parse ifc") {
   CHECK(repr->Representations_.at(0)->RepresentationType_.value() ==
         "MappedRepresentation");
 }
+
+#include "IFC2X3/IfcColourRgb.h"
+#include "IFC2X3/IfcSurfaceStyle.h"
+#include "IFC2X3/IfcSurfaceStyleRendering.h"
+
+TEST_CASE("parse id select") {
+  constexpr auto const* const ifc_input =
+      R"(#200158=IFCCOLOURRGB($,0.200000,0.200000,0.200000);
+#200159=IFCSURFACESTYLERENDERING(#200158,$,$,$,$,$,$,$,.METAL.);
+#200160=IFCSURFACESTYLE('Default Surface',.BOTH.,(#200159));
+#200161=IFCPRESENTATIONSTYLEASSIGNMENT((#200160));)";
+
+  auto parser = step::entry_parser{};
+  IFC2X3::register_all_types(parser);
+  auto model = step::entity_map{parser, ifc_input};
+
+  auto const& surface_style =
+      model.get_entity<IFC2X3::IfcSurfaceStyle>(step::id_t{200160});
+  REQUIRE(surface_style.Styles_.at(0).data_.index() == 0U);
+
+  auto* const shading = std::get<0>(surface_style.Styles_.at(0).data_);
+  REQUIRE(shading->SurfaceColour_ != nullptr);
+  CHECK(shading->SurfaceColour_->Red_ == 0.2);
+  CHECK(shading->SurfaceColour_->Green_ == 0.2);
+  CHECK(shading->SurfaceColour_->Blue_ == 0.2);
+}

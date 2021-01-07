@@ -162,7 +162,7 @@ void generate_header(std::ostream& out, schema const& s, type const& t) {
             << (i != t.details_.size() - 1 ? "," : "") << "\n";
       }
       out << "  > data_;\n";
-      out << "  step::id_t tmp_id_;\n";
+      out << "  step::id_t tmp_id_{std::numeric_limits<unsigned>::max()};\n";
       out << "};";
       break;
 
@@ -242,6 +242,7 @@ void generate_source(std::ostream& out, schema const& s, type const& t) {
           << "#include \"utl/parser/cstr.h\"\n"
           << "#include \"utl/verify.h\"\n\n"
           << "#include \"step/parse_step.h\"\n"
+          << "#include \"step/assign_variant_entity.h\"\n"
           << "#include \"step/resolve.h\"\n\n"
           << "namespace " << s.name_ << " {\n\n";
       out << "void parse_step(utl::cstr& s, " << t.name_ << "& e) {\n";
@@ -260,35 +261,70 @@ void generate_source(std::ostream& out, schema const& s, type const& t) {
         out << R"(  auto const name = std::string_view{s.str, static_cast<std::size_t>(name_end->str - s.str - 1)};)"
             << "\n";
         out << "  s = *name_end;\n";
-        out << "  using Data = std::decay_t<decltype(e.data_)>;\n";
         out << "  switch(cista::hash(name)) {\n";
 
-        auto const list_cases = [&](type const& case_type) {
-          for (auto const& [i, m] : utl::enumerate(t.details_)) {
-            auto const m_type = *s.type_map_.at(m);
-            if (!is_value_type(s, m_type)) {
-              continue;  // handled by ID case
-            }
-            out << "    case "
-                << cista::hash(boost::to_upper_copy<std::string>(m)) << "U: { "
-                << s.name_ << "::" << m
-                << " val; parse_step(s, val); e.data_ = "
-                   "Data{std::in_place_index_t<"
-                << i << ">{}, val}; break; }\n";
-          }
-        };
-        list_cases(t);
+        std::function<void(std::vector<std::pair<type const*, std::size_t>>)>
+            list_cases =
+                [&](std::vector<std::pair<type const*, std::size_t>> const&
+                        chain) {
+                  if (chain.back().first->data_type_ == data_type::SELECT) {
+                    for (auto const& [i, m] :
+                         utl::enumerate(chain.back().first->details_)) {
+                      auto const m_type = *s.type_map_.at(m);
+                      if (!is_value_type(s, m_type)) {
+                        continue;  // handled by ID case
+                      }
+                      auto next_chain = chain;
+                      next_chain.back().second = i;
+                      next_chain.emplace_back(
+                          &m_type, std::numeric_limits<std::size_t>::max());
+                      list_cases(next_chain);
+                    }
+                  } else {
+                    auto const& [last_type, last_id] = chain.back();
+                    out << "    case "
+                        << cista::hash(boost::to_upper_copy<std::string>(
+                               last_type->name_))
+                        << "U"
+                        << ": { " << s.name_ << "::" << last_type->name_
+                        << " v; parse_step(s, v); e = ";
+                    for (auto const& [i, entry] : utl::enumerate(chain)) {
+                      if (i == chain.size() - 1) {
+                        break;
+                      }
+                      auto const& [el_t, select_index] = entry;
+                      out << s.name_ << "::" << el_t->name_ << "{"
+                          << "decltype(std::declval<" << s.name_
+                          << "::" << el_t->name_
+                          << ">().data_){std::in_place_index_t<" << select_index
+                          << ">{}, ";
+                    }
+                    out << "v";
+                    for (auto const& [i, c] : utl::enumerate(chain)) {
+                      if (i == chain.size() - 1) {
+                        break;
+                      }
+                      out << "}}";
+                    }
+                    out << ";";
+                    out << " break; }\n";
+                  }
+                };
+        list_cases({{&t, std::numeric_limits<std::size_t>::max()}});
 
-        out << "  default: utl::verify(false, \"unable to parse select "
+        out << "    default: utl::verify(false, \"unable to parse select "
             << t.name_
             << ", got name '{}', hash={}\", name, cista::hash(name));\n";
         out << "  }\n";
         out << R"(  utl::verify(s.len != 0 && s[0] == ')', "expected select end ')', got {}", s.view());)"
             << "\n";
+        out << "  ++s;";
       }
       out << "}\n\n";
       out << "void " << t.name_
           << "::resolve(std::vector<step::root_entity*> const& m) {\n";
+      out << "  if (tmp_id_ == step::id_t::invalid()) { return; }\n";
+      out << "  step::assign_variant_entity(*this, m.at(tmp_id_.id_));";
       out << "}\n";
       out << "\n}  // namespace " << s.name_ << "\n\n\n";
       break;
@@ -318,8 +354,10 @@ void generate_source(std::ostream& out, schema const& s, type const& t) {
         out << "  " << t.subtype_of_ << "::resolve(m);\n";
       }
       for (auto const& m : t.members_) {
-        if (auto const data_type = is_special(s, m.type_);
-            !data_type.has_value()) {
+        if (auto const member_type_it = s.type_map_.find(m.type_);
+            member_type_it != end(s.type_map_) &&
+            (member_type_it->second->data_type_ == data_type::ENTITY ||
+             member_type_it->second->data_type_ == data_type::SELECT)) {
           out << "  step::resolve(m, " << m.name_ << "_);\n";
         }
       }

@@ -11,6 +11,7 @@
 #include "IFC2X3/IfcOwnerHistory.h"
 #include "IFC2X3/IfcPropertyListValue.h"
 #include "IFC2X3/IfcPropertySingleValue.h"
+#include "IFC2X3/IfcSIUnit.h"
 #include "IFC2X3/IfcShapeRepresentation.h"
 
 TEST_CASE("parse product") {
@@ -274,4 +275,25 @@ TEST_CASE("parse property list value") {
 
   REQUIRE(entry.has_value());
   CHECK(entry->get()->line_idx_ == 0);
+}
+
+TEST_CASE("parse property list value") {
+  constexpr auto const* const input =
+      R"(#11=IFCSIUNIT(*,.LENGTHUNIT.,.MILLI.,.METRE.);)";
+
+  auto const split = step::split_line(input);
+  REQUIRE(split.has_value());
+  CHECK(split->id_ == 11);
+
+  step::selective_entity_parser p;
+  p.register_parsers<IFC2X3::IfcSIUnit>();
+  auto const entry = p.parse(split->name_, split->entity_);
+
+  REQUIRE(entry.has_value());
+  auto const* const val = dynamic_cast<IFC2X3::IfcSIUnit*>(entry->get());
+  REQUIRE(val != nullptr);
+  CHECK(val->UnitType_ == IFC2X3::IfcUnitEnum::IFC2X3_LENGTHUNIT);
+  REQUIRE(val->Prefix_.has_value());
+  CHECK(*val->Prefix_ == IFC2X3::IfcSIPrefix::IFC2X3_MILLI);
+  CHECK(val->Name_ == IFC2X3::IfcSIUnitName::IFC2X3_METRE);
 }

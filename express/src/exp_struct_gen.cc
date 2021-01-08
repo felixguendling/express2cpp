@@ -340,7 +340,11 @@ void generate_source(std::ostream& out, schema const& s, type const& t) {
         out << "  parse_step(s, *static_cast<" << t.subtype_of_ << "*>(&e));\n";
       }
       for (auto const& m : t.members_) {
-        out << "  parse_step(s, e." << m.name_ << "_);\n"
+        out << "  if (s.len > 0 && s[0] == '*') {\n"
+            << "    ++s;\n"
+            << "  } else {\n"
+            << "    parse_step(s, e." << m.name_ << "_);\n"
+            << "  }\n"
             << "  if (s.len > 0 && s[0] == ',') {\n"
             << "    ++s;\n"
             << "  }\n"

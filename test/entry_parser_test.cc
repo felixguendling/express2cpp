@@ -1,6 +1,7 @@
 #include "doctest/doctest.h"
 
-#include "step/entry_parser.h"
+#include "step/parse_lines.h"
+#include "step/selective_entity_parser.h"
 
 #include "IFC2X3/IfcActorSelect.h"
 #include "IFC2X3/IfcAxis2Placement3D.h"
@@ -19,14 +20,17 @@ TEST_CASE("parse product") {
       "#410 = IFCBUILDINGELEMENTPROXY('2K5zlWhbnD_Pplf7Wq7h2T', #2, "
       "'Platzhalter:88209840', $, $, #411, #416, 'Tag:88209840', $);";
 
-  step::entry_parser p;
-  p.register_parsers<building_element_proxy>();
-  auto const entry = p.parse(input);
-  REQUIRE(entry.has_value());
-  CHECK(entry->first.id_ == 410);
-  REQUIRE(dynamic_cast<building_element_proxy*>(entry->second.get()));
+  auto const split = step::split_line(input);
+  REQUIRE(split.has_value());
+  CHECK(split->id_ == 410);
 
-  auto const& bep = *dynamic_cast<building_element_proxy*>(entry->second.get());
+  step::selective_entity_parser p;
+  p.register_parsers<building_element_proxy>();
+  auto const entry = p.parse(split->name_, split->entity_);
+  REQUIRE(entry.has_value());
+  REQUIRE(dynamic_cast<building_element_proxy*>(entry->get()) != nullptr);
+
+  auto const& bep = *dynamic_cast<building_element_proxy*>(entry->get());
   CHECK(bep.GlobalId_ == "2K5zlWhbnD_Pplf7Wq7h2T");
   CHECK(reinterpret_cast<uintptr_t>(bep.OwnerHistory_) == 2);
 
@@ -55,14 +59,16 @@ TEST_CASE("parse share representation") {
       "#96944 = IFCSHAPEREPRESENTATION(#20, 'Body', 'MappedRepresentation', "
       "(#96933));";
 
-  step::entry_parser p;
+  auto const split = step::split_line(input);
+  REQUIRE(split.has_value());
+  CHECK(split->id_ == 96944);
+  step::selective_entity_parser p;
   p.register_parser<shape_representation>();
-  auto const entry = p.parse(input);
+  auto const entry = p.parse(split->name_, split->entity_);
   REQUIRE(entry.has_value());
-  CHECK(entry->first.id_ == 96944);
-  REQUIRE(dynamic_cast<shape_representation*>(entry->second.get()));
+  REQUIRE(dynamic_cast<shape_representation*>(entry->get()) != nullptr);
 
-  auto const& bep = *dynamic_cast<shape_representation*>(entry->second.get());
+  auto const& bep = *dynamic_cast<shape_representation*>(entry->get());
   REQUIRE(bep.RepresentationType_.has_value());
   CHECK(*bep.RepresentationType_ == "MappedRepresentation");
   CHECK(bep.Items_.size() == 1);
@@ -75,13 +81,15 @@ TEST_CASE("parse cartesian point 1") {
   constexpr auto const* const input =
       "#5466 = IFCCARTESIANPOINT((-73910.476024,65619.415293,49080.450753));";
 
-  step::entry_parser p;
+  auto const split = step::split_line(input);
+  REQUIRE(split.has_value());
+  CHECK(split->id_ == 5466);
+  step::selective_entity_parser p;
   p.register_parsers<vertex>();
-  auto const entry = p.parse(input);
+  auto const entry = p.parse(split->name_, split->entity_);
   REQUIRE(entry.has_value());
-  CHECK(entry->first.id_ == 5466);
-  REQUIRE(nullptr != dynamic_cast<vertex*>(entry->second.get()));
-  auto const& coords = dynamic_cast<vertex*>(entry->second.get())->Coordinates_;
+  REQUIRE(nullptr != dynamic_cast<vertex*>(entry->get()));
+  auto const& coords = dynamic_cast<vertex*>(entry->get())->Coordinates_;
   CHECK(std::abs(coords[0] - -73910.476024) <= 0.000001);
   CHECK(std::abs(coords[1] - 65619.415293) <= 0.000001);
   CHECK(std::abs(coords[2] - 49080.450753) <= 0.000001);
@@ -93,13 +101,15 @@ TEST_CASE("parse cartesian point 2") {
   constexpr auto const* const input =
       "#16783 = IFCCARTESIANPOINT((-29750.345510,68710.165565,53116.953431));";
 
-  step::entry_parser p;
+  auto const split = step::split_line(input);
+  REQUIRE(split.has_value());
+  CHECK(split->id_ == 16783);
+  step::selective_entity_parser p;
   p.register_parsers<vertex>();
-  auto const entry = p.parse(input);
+  auto const entry = p.parse(split->name_, split->entity_);
   REQUIRE(entry.has_value());
-  CHECK(entry->first.id_ == 16783);
-  REQUIRE(nullptr != dynamic_cast<vertex*>(entry->second.get()));
-  auto const& coords = dynamic_cast<vertex*>(entry->second.get())->Coordinates_;
+  REQUIRE(nullptr != dynamic_cast<vertex*>(entry->get()));
+  auto const& coords = dynamic_cast<vertex*>(entry->get())->Coordinates_;
   CHECK(std::abs(coords[0] - -29750.345510) <= 0.000001);
   CHECK(std::abs(coords[1] - 68710.165565) <= 0.000001);
   CHECK(std::abs(coords[2] - 53116.953431) <= 0.000001);
@@ -111,14 +121,15 @@ TEST_CASE("parse direction") {
   constexpr auto const* const input =
       "#5574 = IFCDIRECTION((0.000000,0.000000,1.000000));";
 
-  step::entry_parser p;
+  auto const split = step::split_line(input);
+  REQUIRE(split.has_value());
+  CHECK(split->id_ == 5574);
+  step::selective_entity_parser p;
   p.register_parsers<direction>();
-  auto const entry = p.parse(input);
+  auto const entry = p.parse(split->name_, split->entity_);
   REQUIRE(entry.has_value());
-  CHECK(entry->first.id_ == 5574);
-  REQUIRE(nullptr != dynamic_cast<direction*>(entry->second.get()));
-  auto const& coords =
-      dynamic_cast<direction*>(entry->second.get())->DirectionRatios_;
+  REQUIRE(nullptr != dynamic_cast<direction*>(entry->get()));
+  auto const& coords = dynamic_cast<direction*>(entry->get())->DirectionRatios_;
   CHECK(std::abs(coords[0] - 0.0) <= 0.000001);
   CHECK(std::abs(coords[1] - 0.0) <= 0.000001);
   CHECK(std::abs(coords[2] - 1.0) <= 0.000001);
@@ -130,13 +141,15 @@ TEST_CASE("parse projection") {
   constexpr auto const* const input =
       "#5563 = IFCAXIS2PLACEMENT3D(#5564, #5565, #5566);";
 
-  step::entry_parser p;
+  auto const split = step::split_line(input);
+  REQUIRE(split.has_value());
+  CHECK(split->id_ == 5563);
+  step::selective_entity_parser p;
   p.register_parsers<projection>();
-  auto const entry = p.parse(input);
+  auto const entry = p.parse(split->name_, split->entity_);
   REQUIRE(entry.has_value());
-  CHECK(entry->first.id_ == 5563);
-  REQUIRE(nullptr != dynamic_cast<projection*>(entry->second.get()));
-  auto const& proj = *dynamic_cast<projection*>(entry->second.get());
+  REQUIRE(nullptr != dynamic_cast<projection*>(entry->get()));
+  auto const& proj = *dynamic_cast<projection*>(entry->get());
   CHECK(reinterpret_cast<uintptr_t>(proj.Location_) == 5564);
   REQUIRE(proj.Axis_.has_value());
   CHECK(reinterpret_cast<uintptr_t>(*proj.Axis_) == 5565);
@@ -150,15 +163,16 @@ TEST_CASE("parse owner history") {
   constexpr auto const* const input =
       "#5=IFCOWNERHISTORY(#8,#9,$,.DELETED.,$,$,$,1591875543);";
 
-  step::entry_parser p;
+  auto const split = step::split_line(input);
+  REQUIRE(split.has_value());
+  CHECK(split->id_ == 5);
+  step::selective_entity_parser p;
   p.register_parsers<owner_history>();
-  auto const entry = p.parse(input);
+  auto const entry = p.parse(split->name_, split->entity_);
   REQUIRE(entry.has_value());
-  CHECK(entry->first.id_ == 5);
-  REQUIRE(nullptr !=
-          dynamic_cast<IFC2X3::IfcOwnerHistory*>(entry->second.get()));
+  REQUIRE(nullptr != dynamic_cast<IFC2X3::IfcOwnerHistory*>(entry->get()));
   auto const* const history =
-      dynamic_cast<IFC2X3::IfcOwnerHistory*>(entry->second.get());
+      dynamic_cast<IFC2X3::IfcOwnerHistory*>(entry->get());
   CHECK(history->ChangeAction_ == IFC2X3::IfcChangeActionEnum::IFC2X3_DELETED);
   CHECK(!history->LastModifiedDate_.has_value());
   CHECK(!history->LastModifyingUser_.has_value());
@@ -172,9 +186,12 @@ TEST_CASE("parse owner history throws unknown enum value") {
   constexpr auto const* const input =
       "#5=IFCOWNERHISTORY(#8,#9,$,.DELETE.,$,$,$,1591875543);";
 
-  step::entry_parser p;
+  auto const split = step::split_line(input);
+  REQUIRE(split.has_value());
+  CHECK(split->id_ == 5);
+  step::selective_entity_parser p;
   p.register_parsers<owner_history>();
-  CHECK_THROWS(p.parse(input));
+  CHECK_THROWS(p.parse(split->name_, split->entity_));
 }
 
 TEST_CASE("parse positive length measure") {
@@ -222,14 +239,16 @@ TEST_CASE("parse property single value") {
   constexpr auto const* const input =
       R"(#564425=IFCPROPERTYSINGLEVALUE('MaterialThickness','',IFCPOSITIVELENGTHMEASURE(86.),$);)";
 
-  step::entry_parser p;
+  auto const split = step::split_line(input);
+  REQUIRE(split.has_value());
+  CHECK(split->id_ == 564425);
+
+  step::selective_entity_parser p;
   p.register_parsers<IFC2X3::IfcPropertySingleValue>();
-  auto const entry = p.parse(input);
-
+  auto const entry = p.parse(split->name_, split->entity_);
   REQUIRE(entry.has_value());
-  CHECK(entry->first.id_ == 564425);
 
-  auto const* const val = dynamic_cast<prop_single_value*>(entry->second.get());
+  auto const* const val = dynamic_cast<prop_single_value*>(entry->get());
   REQUIRE(val != nullptr);
   REQUIRE(val->NominalValue_.has_value());
   REQUIRE(std::holds_alternative<IFC2X3::IfcMeasureValue>(
@@ -245,11 +264,14 @@ TEST_CASE("parse property list value") {
   constexpr auto const* const input =
       R"(#564427=IFCPROPERTYLISTVALUE('NominalDiameter','',$,$);)";
 
-  step::entry_parser p;
+  auto const split = step::split_line(input);
+  REQUIRE(split.has_value());
+  CHECK(split->id_ == 564427);
+
+  step::selective_entity_parser p;
   p.register_parsers<IFC2X3::IfcPropertyListValue>();
-  auto const entry = p.parse(input);
+  auto const entry = p.parse(split->name_, split->entity_);
 
   REQUIRE(entry.has_value());
-  CHECK(entry->first.id_ == 564427);
-  CHECK(entry->second->line_idx_ == 0);
+  CHECK(entry->get()->line_idx_ == 0);
 }

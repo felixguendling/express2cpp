@@ -108,6 +108,7 @@ void generate_header(std::ostream& out, schema const& s, type const& t) {
     out << "\n";
   }
   if (t.data_type_ == data_type::SELECT) {
+    out << "#include \"step/id_t.h\"\n\n";
     for (auto const& d : t.details_) {
       if (is_value_type(s, *s.type_map_.at(d))) {
         out << "#include \"" << s.name_ << "/" << d << ".h\"\n";
@@ -280,7 +281,7 @@ void generate_source(std::ostream& out, schema const& s, type const& t) {
           << "#include \"utl/parser/cstr.h\"\n"
           << "#include \"utl/verify.h\"\n\n"
           << "#include \"step/parse_step.h\"\n"
-          << "#include \"step/assign_variant_entity.h\"\n"
+          << "#include \"step/assign_entity_ptr_to_select.h\"\n"
           << "#include \"step/resolve.h\"\n\n"
           << "namespace " << s.name_ << " {\n\n";
       out << "void parse_step(utl::cstr& s, " << t.name_ << "& e) {\n";
@@ -320,7 +321,7 @@ void generate_source(std::ostream& out, schema const& s, type const& t) {
       out << "void " << t.name_
           << "::resolve(std::vector<step::root_entity*> const& m) {\n";
       out << "  if (tmp_id_ == step::id_t::invalid()) { return; }\n";
-      out << "  step::assign_variant_entity(*this, m.at(tmp_id_.id_));\n";
+      out << "  step::assign_entity_ptr_to_select(*this, m.at(tmp_id_.id_));\n";
       out << "}\n";
       out << "\n}  // namespace " << s.name_ << "\n\n\n";
     } break;

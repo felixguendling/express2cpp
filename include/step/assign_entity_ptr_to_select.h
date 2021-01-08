@@ -7,6 +7,8 @@
 
 namespace step {
 
+namespace {
+
 template <typename Fn, typename... T, std::size_t... Is>
 bool iterate_variant_impl(Fn&& f, std::variant<T...> v,
                           std::index_sequence<Is...>) {
@@ -19,8 +21,10 @@ bool iterate_variant(Fn&& f, std::variant<T...> v) {
                               std::index_sequence_for<T...>());
 }
 
+}  // namespace
+
 template <typename T>
-bool assign_variant_entity(T& t, root_entity* entity) {
+bool assign_entity_ptr_to_select(T& t, root_entity* entity) {
   return iterate_variant(
       [&](std::size_t const index, auto&& el) {
         using Type = std::decay_t<decltype(el)>;
@@ -31,7 +35,7 @@ bool assign_variant_entity(T& t, root_entity* entity) {
             return true;
           }
         } else if constexpr (has_data<Type>::value) {
-          if (assign_variant_entity(el, entity)) {
+          if (assign_entity_ptr_to_select(el, entity)) {
             t.data_ = el;
             return true;
           }

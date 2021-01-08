@@ -1,5 +1,6 @@
 #include <iostream>
 
+#include "boost/algorithm/string.hpp"
 #include "boost/filesystem.hpp"
 
 #include "cista/mmap.h"
@@ -39,22 +40,64 @@ int main(int argc, char** argv) {
     express::generate_source(source_out, schema, t);
   }
 
-  source_out << "\n\n#include \"step/entry_parser.h\"\n";
-  source_out << "namespace " << schema.name_ << "{\n";
-  source_out << "void register_all_types(step::entry_parser& m) {";
+  source_out << "\n\n"
+                "#include \""
+             << schema.name_ << "/"
+             << "parser.h\"\n"
+                "#include \"step/root_entity.h\"\n"
+                "#include \"step/parse_lines.h\"\n"
+                "\n"
+             << "namespace " << schema.name_ << "{\n"
+             << "\n"
+                "struct full_parser {\n"
+                "  std::optional<step::entity_ptr> parse(\n"
+                "      utl::cstr type_name,\n"
+                "      utl::cstr rest) const {\n"
+                "    switch (cista::hash(type_name.view())) {\n";
   for (auto const& t : schema.types_) {
     if (t.data_type_ == express::data_type::ENTITY) {
-      source_out << "  m.register_parser<" << t.name_ << ">();\n";
+      source_out << "      case "
+                 << cista::hash(boost::to_upper_copy<std::string>(t.name_))
+                 << "U: { auto v = std::make_unique<" << t.name_
+                 << ">(); parse_step(rest, *v); return "
+                    "std::unique_ptr<step::root_entity>(v.release()); }\n";
     }
   }
-  source_out << "}\n";
-  source_out << "}  // namespace " << schema.name_ << "\n";
+  source_out
+      << "      default: return std::nullopt;\n"
+         "    }\n"
+         "  }\n"
+         "};\n"
+         "\n"
+         "step::model parse(step::selective_entity_parser& p, utl::cstr s) {\n"
+         "  return step::parse_lines(p, s);\n"
+         "}\n"
+         "\n"
+         "step::model parse(utl::cstr s) {\n"
+         "  return step::parse_lines(full_parser{}, s);\n"
+         "}\n"
+         "\n"
+         "}  // namespace "
+      << schema.name_ << "\n";
 
-  auto types_header_out = std::ofstream{
-      (header_path / ("register_all_types.h")).generic_string().c_str()};
-  types_header_out << "#pragma once\n\n"
-                   << "namespace step { struct entry_parser; }\n\n";
-  types_header_out << "namespace " << schema.name_ << " {\n\n"
-                   << "void register_all_types(step::entry_parser&);\n";
-  types_header_out << "}  // namespace " << schema.name_;
+  auto types_header_out =
+      std::ofstream{(header_path / ("parser.h")).generic_string().c_str()};
+  types_header_out
+      << "#pragma once\n\n"
+      << "#include \"step/model.h\"\n"
+      << "#include \"step/selective_entity_parser.h\"\n\n"
+      << "namespace " << schema.name_ << " {\n"
+      << "\n"
+      << "step::model parse(utl::cstr);\n"
+         "\n"
+      << "step::model parse(step::selective_entity_parser&, utl::cstr);\n"
+         "\n"
+      << "template <typename... Entities>\n"
+         "step::model parse(utl::cstr s) {\n"
+         "  step::selective_entity_parser p;\n"
+         "  p.register_parsers<Entities...>();\n"
+         "  return parse(p, s);\n"
+         "}\n"
+         "\n"
+      << "}  // namespace " << schema.name_;
 }

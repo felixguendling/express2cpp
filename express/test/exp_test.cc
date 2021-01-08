@@ -255,7 +255,8 @@ TEST_CASE("parse test schema") {
 
 TEST_CASE("parse ifc schema") {
   boost::filesystem::current_path(TEST_EXECUTION_DIR);
-  auto const f = cista::mmap{"test/ifc23.txt", cista::mmap::protection::READ};
+  auto const f =
+      cista::mmap{"express/test/ifc23.txt", cista::mmap::protection::READ};
   auto const schema = parse(
       std::string_view{reinterpret_cast<char const*>(f.data()), f.size()});
 

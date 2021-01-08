@@ -2,6 +2,7 @@
 
 #include "step/entry_parser.h"
 
+#include "IFC2X3/IfcActorSelect.h"
 #include "IFC2X3/IfcAxis2Placement3D.h"
 #include "IFC2X3/IfcBuildingElementProxy.h"
 #include "IFC2X3/IfcCartesianPoint.h"
@@ -187,6 +188,32 @@ TEST_CASE("parse positive length measure") {
   CHECK(std::get<11>(std::get<IFC2X3::IfcMeasureValue>(v.data_).data_) == 86);
 
   CHECK(s.empty());
+}
+
+TEST_CASE("ifc actor select bad id 1") {
+  constexpr auto const* const input = "IFCPOSITIVELENGTHMEASURE(86.)";
+
+  IFC2X3::IfcActorSelect v;
+  auto s = utl::cstr{input};
+  CHECK_THROWS(parse_step(s, v));
+}
+
+TEST_CASE("ifc actor select bad id 2") {
+  constexpr auto const* const input = "#,";
+
+  IFC2X3::IfcActorSelect v;
+  auto s = utl::cstr{input};
+  CHECK_THROWS(parse_step(s, v));
+}
+
+TEST_CASE("ifc actor select good id") {
+  constexpr auto const* const input = "#123";
+
+  IFC2X3::IfcActorSelect v;
+  auto s = utl::cstr{input};
+  parse_step(s, v);
+
+  CHECK(v.tmp_id_.id_ == 123);
 }
 
 TEST_CASE("parse property single value") {

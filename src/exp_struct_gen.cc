@@ -235,9 +235,47 @@ void generate_header(std::ostream& out, schema const& s, type const& t) {
   out << "\n}  // namespace " << s.name_ << "\n";
 }
 
+void list_select_cases(std::ostream& out, schema const& s,
+                       std::vector<std::pair<type const*, std::size_t>> chain) {
+  if (chain.back().first->data_type_ != data_type::SELECT) {
+    // Recursion base case -> output case
+    auto const [last_type, last_id] = chain.back();
+    chain.resize(chain.size() - 1);
+    out << "    case "
+        << cista::hash(boost::to_upper_copy<std::string>(last_type->name_))
+        << "U"
+        << ": { " << s.name_ << "::" << last_type->name_
+        << " v; parse_step(s, v); e = ";
+    for (auto const& [i, entry] : utl::enumerate(chain)) {
+      auto const& [el_t, select_index] = entry;
+      out << s.name_ << "::" << el_t->name_ << "{"
+          << "decltype(std::declval<" << s.name_ << "::" << el_t->name_
+          << ">().data_){std::in_place_index_t<" << select_index << ">{}, ";
+    }
+    out << "v";
+    for (auto const& [i, c] : utl::enumerate(chain)) {
+      out << "}}";
+    }
+    out << ";";
+    out << " break; }\n";
+  } else {
+    // Continue recursion for each type in the select.
+    for (auto const& [i, m] : utl::enumerate(chain.back().first->details_)) {
+      auto const m_type = *s.type_map_.at(m);
+      if (!is_value_type(s, m_type)) {
+        continue;  // handled by ID case
+      }
+      auto next_chain = chain;
+      next_chain.back().second = i;
+      next_chain.emplace_back(&m_type, std::numeric_limits<std::size_t>::max());
+      list_select_cases(out, s, std::move(next_chain));
+    }
+  }
+}
+
 void generate_source(std::ostream& out, schema const& s, type const& t) {
   switch (t.data_type_) {
-    case data_type::SELECT:
+    case data_type::SELECT: {
       out << "#include \"" << s.name_ << "/" << t.name_ << ".h\"\n\n"
           << "#include \"utl/parser/cstr.h\"\n"
           << "#include \"utl/verify.h\"\n\n"
@@ -251,10 +289,12 @@ void generate_source(std::ostream& out, schema const& s, type const& t) {
       out << "    parse_step(s, e.tmp_id_);\n";
       out << "    return;\n";
       out << "  }\n";
-      if (std::any_of(begin(t.details_), end(t.details_),
-                      [&](std::string const& m) {
-                        return is_value_type(s, *s.type_map_.at(m));
-                      })) {
+
+      auto const select_has_value_types = std::any_of(
+          begin(t.details_), end(t.details_), [&](std::string const& m) {
+            return is_value_type(s, *s.type_map_.at(m));
+          });
+      if (select_has_value_types) {
         out << "  auto const name_end = step::get_next_token(s, '(');\n";
         out << R"(  utl::verify(name_end.has_value(), "expected SELECT name, got {}", s.view());)"
             << "\n";
@@ -262,58 +302,10 @@ void generate_source(std::ostream& out, schema const& s, type const& t) {
             << "\n";
         out << "  s = *name_end;\n";
         out << "  switch(cista::hash(name)) {\n";
-
-        std::function<void(std::vector<std::pair<type const*, std::size_t>>)>
-            list_cases =
-                [&](std::vector<std::pair<type const*, std::size_t>> const&
-                        chain) {
-                  if (chain.back().first->data_type_ == data_type::SELECT) {
-                    for (auto const& [i, m] :
-                         utl::enumerate(chain.back().first->details_)) {
-                      auto const m_type = *s.type_map_.at(m);
-                      if (!is_value_type(s, m_type)) {
-                        continue;  // handled by ID case
-                      }
-                      auto next_chain = chain;
-                      next_chain.back().second = i;
-                      next_chain.emplace_back(
-                          &m_type, std::numeric_limits<std::size_t>::max());
-                      list_cases(next_chain);
-                    }
-                  } else {
-                    auto const& [last_type, last_id] = chain.back();
-                    out << "    case "
-                        << cista::hash(boost::to_upper_copy<std::string>(
-                               last_type->name_))
-                        << "U"
-                        << ": { " << s.name_ << "::" << last_type->name_
-                        << " v; parse_step(s, v); e = ";
-                    for (auto const& [i, entry] : utl::enumerate(chain)) {
-                      if (i == chain.size() - 1) {
-                        break;
-                      }
-                      auto const& [el_t, select_index] = entry;
-                      out << s.name_ << "::" << el_t->name_ << "{"
-                          << "decltype(std::declval<" << s.name_
-                          << "::" << el_t->name_
-                          << ">().data_){std::in_place_index_t<" << select_index
-                          << ">{}, ";
-                    }
-                    out << "v";
-                    for (auto const& [i, c] : utl::enumerate(chain)) {
-                      if (i == chain.size() - 1) {
-                        break;
-                      }
-                      out << "}}";
-                    }
-                    out << ";";
-                    out << " break; }\n";
-                  }
-                };
-        list_cases({{&t, std::numeric_limits<std::size_t>::max()}});
-
+        list_select_cases(out, s,
+                          {{&t, std::numeric_limits<std::size_t>::max()}});
         out << "    default: utl::verify(false, \"unable to parse select "
-            << t.name_
+            << s.name_ << "::" << t.name_
             << ", got name '{}', hash={}\", name, cista::hash(name));\n";
         out << "  }\n";
         out << R"(  utl::verify(s.len != 0 && s[0] == ')', "expected select end ')', got {}", s.view());)"
@@ -323,6 +315,7 @@ void generate_source(std::ostream& out, schema const& s, type const& t) {
         out << "  utl::verify(false, \"select: expected id, got {}\", "
                "s.view());\n";
       }
+
       out << "}\n\n";
       out << "void " << t.name_
           << "::resolve(std::vector<step::root_entity*> const& m) {\n";
@@ -330,7 +323,7 @@ void generate_source(std::ostream& out, schema const& s, type const& t) {
       out << "  step::assign_variant_entity(*this, m.at(tmp_id_.id_));\n";
       out << "}\n";
       out << "\n}  // namespace " << s.name_ << "\n\n\n";
-      break;
+    } break;
 
     case data_type::ENTITY:
       out << "#include \"" << s.name_ << "/" << t.name_ << ".h\"\n\n"

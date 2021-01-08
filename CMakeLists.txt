@@ -21,7 +21,7 @@ endif ()
 
 configure_file(
         ${CMAKE_CURRENT_SOURCE_DIR}/tools/test_dir.h.in
-        ${CMAKE_BINARY_DIR}/step/generated/test_dir.h
+        ${CMAKE_BINARY_DIR}/generated/test_dir.h
 )
 add_library(test-dir INTERFACE)
 target_include_directories(test-dir INTERFACE ${CMAKE_BINARY_DIR}/generated)

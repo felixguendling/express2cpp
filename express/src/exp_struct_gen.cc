@@ -214,8 +214,8 @@ void generate_header(std::ostream& out, schema const& s, type const& t) {
             << (m.optional_ ? "std::optional<" : "")
             << (m.list_ ? use_array ? "std::array<" : "std::vector<" : "");
 
-        if (auto const data_type = is_special(s, m.type_);
-            data_type.has_value()) {
+        auto const data_type = is_special(s, m.type_);
+        if (data_type.has_value()) {
           out << *data_type;
         } else {
           out << m.type_ << "*";
@@ -225,7 +225,10 @@ void generate_header(std::ostream& out, schema const& s, type const& t) {
         }
         out << (m.list_ ? ">" : "")  //
             << (m.optional_ ? ">" : "")  //
-            << " " << m.name_ << "_;\n";
+            << " " << m.name_ << "_"
+            << (!data_type.has_value() && !m.list_ && !m.optional_ ? "{nullptr}"
+                                                                   : "")
+            << ";\n";
       }
       out << "};\n";
       break;

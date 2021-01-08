@@ -1,7 +1,7 @@
 #include "doctest/doctest.h"
 
-#include "step/parse_lines.h"
 #include "step/selective_entity_parser.h"
+#include "step/split_line.h"
 
 #include "IFC2X3/IfcActorSelect.h"
 #include "IFC2X3/IfcAxis2Placement3D.h"
@@ -292,6 +292,7 @@ TEST_CASE("parse property list value") {
   REQUIRE(entry.has_value());
   auto const* const val = dynamic_cast<IFC2X3::IfcSIUnit*>(entry->get());
   REQUIRE(val != nullptr);
+  CHECK(val->Dimensions_ == nullptr);
   CHECK(val->UnitType_ == IFC2X3::IfcUnitEnum::IFC2X3_LENGTHUNIT);
   REQUIRE(val->Prefix_.has_value());
   CHECK(*val->Prefix_ == IFC2X3::IfcSIPrefix::IFC2X3_MILLI);

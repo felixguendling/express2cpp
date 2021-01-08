@@ -17,10 +17,8 @@ main.cc
 #include "IFC2X3/IfcProduct.h"
 #include "IFC2X3/register_all_types.h"
 
-auto parser = step::entry_parser{};
-IFC2X3::register_all_types(parser);
-auto model = step::entity_map{parser, ifc_input};
-model.get_entity<IFC2X3::IfcProduct>(step::id_t{0});
+auto model = IFC2X3::parse(ifc_input);
+model.get_entity<IFC2X3::IfcProduct>(1337);
 ```
 
 # Supported Targets

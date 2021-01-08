@@ -214,8 +214,8 @@ void generate_header(std::ostream& out, schema const& s, type const& t) {
             << (m.optional_ ? "std::optional<" : "")
             << (m.list_ ? use_array ? "std::array<" : "std::vector<" : "");
 
-        if (auto const data_type = is_special(s, m.type_);
-            data_type.has_value()) {
+        auto const data_type = is_special(s, m.type_);
+        if (data_type.has_value()) {
           out << *data_type;
         } else {
           out << m.type_ << "*";
@@ -225,7 +225,10 @@ void generate_header(std::ostream& out, schema const& s, type const& t) {
         }
         out << (m.list_ ? ">" : "")  //
             << (m.optional_ ? ">" : "")  //
-            << " " << m.name_ << "_;\n";
+            << " " << m.name_ << "_"
+            << (!data_type.has_value() && !m.list_ && !m.optional_ ? "{nullptr}"
+                                                                   : "")
+            << ";\n";
       }
       out << "};\n";
       break;
@@ -340,7 +343,11 @@ void generate_source(std::ostream& out, schema const& s, type const& t) {
         out << "  parse_step(s, *static_cast<" << t.subtype_of_ << "*>(&e));\n";
       }
       for (auto const& m : t.members_) {
-        out << "  parse_step(s, e." << m.name_ << "_);\n"
+        out << "  if (s.len > 0 && s[0] == '*') {\n"
+            << "    ++s;\n"
+            << "  } else {\n"
+            << "    parse_step(s, e." << m.name_ << "_);\n"
+            << "  }\n"
             << "  if (s.len > 0 && s[0] == ',') {\n"
             << "    ++s;\n"
             << "  }\n"

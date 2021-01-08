@@ -84,8 +84,10 @@ void generate_header(std::ostream& out, schema const& s, type const& t) {
       });
   auto const uses_string =
       t.data_type_ == data_type::STRING ||
-      std::any_of(begin(t.members_), end(t.members_),
-                  [](member const& m) { return m.type_ == "STRING"; });
+      std::any_of(begin(t.members_), end(t.members_), [&](member const& m) {
+        auto const special = is_special(s, m.type_);
+        return special.has_value() && *special == "std::string";
+      });
   auto const uses_variant = t.data_type_ == data_type::SELECT;
 
   if (t.subtype_of_.empty()) {

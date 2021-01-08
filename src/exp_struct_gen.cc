@@ -318,13 +318,16 @@ void generate_source(std::ostream& out, schema const& s, type const& t) {
         out << "  }\n";
         out << R"(  utl::verify(s.len != 0 && s[0] == ')', "expected select end ')', got {}", s.view());)"
             << "\n";
-        out << "  ++s;";
+        out << "  ++s;\n";
+      } else {
+        out << "  utl::verify(false, \"select: expected id, got {}\", "
+               "s.view());\n";
       }
       out << "}\n\n";
       out << "void " << t.name_
           << "::resolve(std::vector<step::root_entity*> const& m) {\n";
       out << "  if (tmp_id_ == step::id_t::invalid()) { return; }\n";
-      out << "  step::assign_variant_entity(*this, m.at(tmp_id_.id_));";
+      out << "  step::assign_variant_entity(*this, m.at(tmp_id_.id_));\n";
       out << "}\n";
       out << "\n}  // namespace " << s.name_ << "\n\n\n";
       break;

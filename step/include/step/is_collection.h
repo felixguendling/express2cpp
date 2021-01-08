@@ -5,7 +5,7 @@
 
 namespace step {
 
-template <class, class = void>
+template <class, typename = void>
 struct is_collection : std::false_type {};
 
 template <class T>

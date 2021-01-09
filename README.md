@@ -15,7 +15,7 @@ target_link_libraries(exe ifc2x3)
 main.cc
 ```cpp
 #include "IFC2X3/IfcProduct.h"
-#include "IFC2X3/register_all_types.h"
+#include "IFC2X3/parser.h"
 
 auto model = IFC2X3::parse(ifc_input);
 model.get_entity<IFC2X3::IfcProduct>(1337);

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <optional>
 #include <ostream>
 #include <type_traits>
 #include <unordered_map>

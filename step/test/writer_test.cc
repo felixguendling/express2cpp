@@ -1,5 +1,6 @@
 #include "doctest/doctest.h"
 
+#include <iostream>
 #include <sstream>
 
 #include "step/write.h"

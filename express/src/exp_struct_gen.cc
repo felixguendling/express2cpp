@@ -100,7 +100,8 @@ void generate_header(std::ostream& out, schema const& s, type const& t) {
       uses_vector) {
     out << "\n";
   }
-  out << (uses_array ? "#include <array>\n" : "")
+  out << "#include <iosfwd>\n"
+      << (uses_array ? "#include <vector>\n" : "")
       << (uses_optional ? "#include <optional>\n" : "")
       << (uses_string ? "#include <string>\n" : "")
       << (uses_variant ? "#include <variant>\n" : "")  //
@@ -158,6 +159,8 @@ void generate_header(std::ostream& out, schema const& s, type const& t) {
       }
       out << "\nstruct " << t.name_ << " {\n";
       out << "  friend void parse_step(utl::cstr&, " << t.name_ << "&);\n";
+      out << "  friend void write(step::write_context const&, std::ostream&, "
+          << t.name_ << " const&);\n";
       out << "  void resolve(std::vector<step::root_entity*> const&);\n\n";
       out << "  std::variant<\n";
       for (auto const& [i, v] : utl::enumerate(t.details_)) {
@@ -181,6 +184,8 @@ void generate_header(std::ostream& out, schema const& s, type const& t) {
       }
       out << "};\n";
       out << "void parse_step(utl::cstr&, " << t.name_ << "&);\n";
+      out << "void write(step::write_context const&, std::ostream&, " << t.name_
+          << " const&);\n";
       break;
 
     case data_type::ENTITY: {
@@ -204,12 +209,14 @@ void generate_header(std::ostream& out, schema const& s, type const& t) {
           << "  static constexpr auto const NAME = \""
           << boost::to_upper_copy<std::string>(t.name_) << "\";\n"
           << "  friend void parse_step(utl::cstr&, " << t.name_ << "&);\n"
-          << "  virtual void resolve(std::vector<root_entity*> const&) "
+          << "  void resolve(std::vector<root_entity*> const&) override;\n"
+             "  void write(step::write_context const&, std::ostream&, bool "
+             "const write_type_name) const "
              "override;\n";
 
       for (auto const& m : t.members_) {
         auto const use_array =
-            m.max_size_ != std::numeric_limits<unsigned>::max();
+            false && m.max_size_ != std::numeric_limits<unsigned>::max();
         out << "  "  //
             << (m.optional_ ? "std::optional<" : "")
             << (m.list_ ? use_array ? "std::array<" : "std::vector<" : "");
@@ -279,6 +286,12 @@ void list_select_cases(std::ostream& out, schema const& s,
   }
 }
 
+bool has_members(schema const& s, type const& t) {
+  return !t.members_.empty() ||
+         (!t.subtype_of_.empty() &&
+          has_members(s, *s.type_map_.at(t.subtype_of_)));
+};
+
 void generate_source(std::ostream& out, schema const& s, type const& t) {
   switch (t.data_type_) {
     case data_type::SELECT: {
@@ -286,6 +299,7 @@ void generate_source(std::ostream& out, schema const& s, type const& t) {
           << "#include \"utl/parser/cstr.h\"\n"
           << "#include \"utl/verify.h\"\n\n"
           << "#include \"step/parse_step.h\"\n"
+          << "#include \"step/write.h\"\n"
           << "#include \"step/assign_entity_ptr_to_select.h\"\n"
           << "#include \"step/resolve.h\"\n\n"
           << "namespace " << s.name_ << " {\n\n";
@@ -327,6 +341,30 @@ void generate_source(std::ostream& out, schema const& s, type const& t) {
           << "::resolve(std::vector<step::root_entity*> const& m) {\n";
       out << "  if (tmp_id_ == step::id_t::invalid()) { return; }\n";
       out << "  step::assign_entity_ptr_to_select(*this, m.at(tmp_id_.id_));\n";
+      out << "}\n\n";
+      out << "void write(step::write_context const& ctx, std::ostream& out, "
+          << t.name_ << " const& el) {\n";
+      out << "  static char const* names[] = {\n";
+      for (auto const& [i, m] : utl::enumerate(t.details_)) {
+        out << "    \"" << boost::to_upper_copy<std::string>(m) << "\"";
+        if (i != t.details_.size() - 1) {
+          out << ", ";
+        }
+      }
+      out << "  };";
+      out << "  std::visit([&](auto&& data) {\n"
+             "    using step::write;\n"
+             "    using Type = std::decay_t<decltype(data)>\n;"
+             "    constexpr auto const final = "
+             "!step::has_data<Type>::value && !std::is_pointer_v<Type>;\n"
+             "    if constexpr (final) {\n"
+             "      out << names[el.data_.index()] << '(';\n"
+             "    }\n"
+             "    write(ctx, out, data);\n"
+             "    if constexpr (final) {\n"
+             "      out << ')';\n"
+             "    }\n"
+             "  }, el.data_);";
       out << "}\n";
       out << "\n}  // namespace " << s.name_ << "\n\n\n";
     } break;
@@ -335,7 +373,8 @@ void generate_source(std::ostream& out, schema const& s, type const& t) {
       out << "#include \"" << s.name_ << "/" << t.name_ << ".h\"\n\n"
           << "#include \"utl/parser/cstr.h\"\n\n"
           << "#include \"step/parse_step.h\"\n"
-          << "#include \"step/resolve.h\"\n\n"
+          << "#include \"step/resolve.h\"\n"
+          << "#include \"step/write.h\"\n\n"
           << "namespace " << s.name_ << " {\n\n";
       out << "void parse_step(utl::cstr& s, " << t.name_ << "& e) {\n";
       out << "  using step::parse_step;\n";
@@ -368,6 +407,33 @@ void generate_source(std::ostream& out, schema const& s, type const& t) {
         }
       }
       out << "}\n";
+
+      out << "void " << t.name_
+          << "::write(step::write_context const& ctx, std::ostream& out, bool "
+             "const write_type_name) const "
+             "{\n"
+             "  using step::write;\n"
+             "  if (write_type_name) { out << \""
+          << boost::to_upper_copy<std::string>(t.name_) << "(\"; }\n";
+      if (!t.subtype_of_.empty()) {
+        out << "  " << t.subtype_of_ << "::write(ctx, out, false);\n";
+        if (!t.members_.empty() &&
+            has_members(s, *s.type_map_.at(t.subtype_of_))) {
+          out << "  out << \", \";\n";
+        }
+      }
+
+      if (!t.members_.empty()) {
+        for (auto const& [i, m] : utl::enumerate(t.members_)) {
+          out << "  write(ctx, out, " << m.name_ << "_);\n";
+          if (i != t.members_.size() - 1) {
+            out << "  out << \", \";\n";
+          }
+        }
+      }
+      out << "  if (write_type_name) { out << \");\"; }\n";
+      out << "}\n";
+
       out << "\n}  // namespace " << s.name_ << "\n\n\n";
 
       break;
@@ -397,6 +463,16 @@ void generate_source(std::ostream& out, schema const& s, type const& t) {
              "str);\n";
       out << "  }\n";
       out << "  s = *end;\n";
+      out << "}\n\n";
+      out << "void write(step::write_context const&, std::ostream& out, "
+          << t.name_ << " const& val) {\n"
+          << "  switch (val) {\n";
+      for (auto const& [i, m] : utl::enumerate(t.details_)) {
+        out << "    case " << t.name_ << "::" << s.name_ << "_" << m
+            << ": out << \"." << m << ".\"; break;\n";
+      }
+      out << "    default: throw std::runtime_error{\"unknown enum value\"};\n";
+      out << "  }\n";
       out << "}\n\n";
       out << "}  // namespace " << s.name_ << "\n\n\n";
       break;

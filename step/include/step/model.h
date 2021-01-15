@@ -13,7 +13,7 @@ struct root_entity;
 
 struct model {
   template <typename T>
-  T const& get_entity(step::id_t const& id) {
+  T const& get_entity(step::id_t const& id) const {
     utl::verify(id_to_entity_.size() > id.id_, "invalid id");
     auto const* const entity = dynamic_cast<T*>(id_to_entity_[id.id_]);
     utl::verify(entity != nullptr, "bad cast");

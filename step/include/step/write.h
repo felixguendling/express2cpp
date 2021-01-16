@@ -38,7 +38,9 @@ void write(write_context const& ctx, std::ostream& out, T const& e) {
   if constexpr (std::is_base_of_v<root_entity, Type>) {
     e.write(ctx, out, true);
   } else if constexpr (std::is_pointer_v<Type>) {
-    if (e != nullptr) {
+    if (e == nullptr) {
+      out << "*";
+    } else {
       auto const it = ctx.ptr_to_id_.find(e);
       utl::verify(it != end(ctx.ptr_to_id_), "could not resolve {}* {}",
                   cista::type_str<Type>(), static_cast<void const*>(e));

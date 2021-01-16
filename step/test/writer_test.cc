@@ -51,3 +51,14 @@ TEST_CASE("write model with select value test") {
                        "IFCPOSITIVELENGTHMEASURE(86), $);\n";
   CHECK(matches);
 }
+
+TEST_CASE("write model with select value test") {
+  constexpr auto const* const ifc_input =
+      R"(#11=IFCSIUNIT(*,.LENGTHUNIT.,.MILLI.,.METRE.);)";
+
+  std::stringstream ss;
+  write(ss, IFC2X3::parse(ifc_input));
+  auto const matches =
+      ss.str() == "#0 = IFCSIUNIT(*, .LENGTHUNIT., .MILLI., .METRE.);\n";
+  CHECK(matches);
+}

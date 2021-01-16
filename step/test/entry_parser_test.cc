@@ -1,5 +1,7 @@
 #include "doctest/doctest.h"
 
+#include <iostream>
+
 #include "step/selective_entity_parser.h"
 #include "step/split_line.h"
 

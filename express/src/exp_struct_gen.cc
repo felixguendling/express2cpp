@@ -161,6 +161,7 @@ void generate_header(std::ostream& out, schema const& s, type const& t) {
       out << "  friend void parse_step(utl::cstr&, " << t.name_ << "&);\n";
       out << "  friend void write(step::write_context const&, std::ostream&, "
           << t.name_ << " const&);\n";
+      out << "  std::string_view name() const;\n";
       out << "  void resolve(std::vector<step::root_entity*> const&);\n\n";
       out << "  std::variant<\n";
       for (auto const& [i, v] : utl::enumerate(t.details_)) {
@@ -342,23 +343,30 @@ void generate_source(std::ostream& out, schema const& s, type const& t) {
       out << "  if (tmp_id_ == step::id_t::invalid()) { return; }\n";
       out << "  step::assign_entity_ptr_to_select(*this, m.at(tmp_id_.id_));\n";
       out << "}\n\n";
-      out << "void write(step::write_context const& ctx, std::ostream& out, "
-          << t.name_ << " const& el) {\n";
+
+      out << "std::string_view " << t.name_ << "::name() const {\n";
       out << "  static char const* names[] = {\n";
       for (auto const& [i, m] : utl::enumerate(t.details_)) {
         out << "    \"" << boost::to_upper_copy<std::string>(m) << "\"";
         if (i != t.details_.size() - 1) {
-          out << ", ";
+          out << ",\n";
+        } else {
+          out << "\n";
         }
       }
-      out << "  };";
+      out << "  };\n";
+      out << "  return names[data_.index()];\n"
+             "}\n\n";
+
+      out << "void write(step::write_context const& ctx, std::ostream& out, "
+          << t.name_ << " const& el) {\n";
       out << "  std::visit([&](auto&& data) {\n"
              "    using step::write;\n"
              "    using Type = std::decay_t<decltype(data)>\n;"
              "    constexpr auto const final = "
              "!step::has_data<Type>::value && !std::is_pointer_v<Type>;\n"
              "    if constexpr (final) {\n"
-             "      out << names[el.data_.index()] << '(';\n"
+             "      out << el.name() << '(';\n"
              "    }\n"
              "    write(ctx, out, data);\n"
              "    if constexpr (final) {\n"

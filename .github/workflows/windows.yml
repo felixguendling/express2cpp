@@ -57,9 +57,11 @@ jobs:
           Enter-VsDevShell -VsInstallPath $installPath -SkipAutomaticLocation -DevCmdArguments "-arch=amd64"
           cmake -GNinja -S . -B build -DCMAKE_BUILD_TYPE=${{ matrix.mode }}
           .\build\bin\buildcache.exe -z
-          cmake --build build --target express-test
+          cmake --build build --target express-test step-test
           .\build\bin\buildcache.exe -s
 
       # ==== TESTS ====
       - name: Run Tests
-        run: .\build\express-test.exe
+        run: |
+          .\build\express-test.exe
+          .\build\step-test.exe

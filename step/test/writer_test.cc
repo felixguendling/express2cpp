@@ -33,10 +33,11 @@ TEST_CASE("write model with references test") {
 
   std::stringstream ss;
   write(ss, IFC2X3::parse(ifc_input));
-  CHECK(ss.str() == R"(#0 = IFCCOLOURRGB($, 0.2, 0.2, 0.2);
+  auto const matches = ss.str() == R"(#0 = IFCCOLOURRGB($, 0.2, 0.2, 0.2);
 #1 = IFCSURFACESTYLERENDERING(#0, $, $, $, $, $, $, $, .METAL.);
 #2 = IFCSURFACESTYLE('Default Surface', .BOTH., (#1));
-)");
+)";
+  CHECK(matches);
 }
 
 TEST_CASE("write model with select value test") {
@@ -45,7 +46,8 @@ TEST_CASE("write model with select value test") {
 
   std::stringstream ss;
   write(ss, IFC2X3::parse(ifc_input));
-  CHECK(ss.str() ==
-        "#0 = IFCPROPERTYSINGLEVALUE('MaterialThickness', '', "
-        "IFCPOSITIVELENGTHMEASURE(86), $);\n");
+  auto const matches = ss.str() ==
+                       "#0 = IFCPROPERTYSINGLEVALUE('MaterialThickness', '', "
+                       "IFCPOSITIVELENGTHMEASURE(86), $);\n";
+  CHECK(matches);
 }

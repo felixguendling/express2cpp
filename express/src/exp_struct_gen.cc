@@ -219,9 +219,12 @@ void generate_header(std::ostream& out, schema const& s, type const& t) {
       for (auto const& m : t.members_) {
         auto const use_array =
             false && m.max_size_ != std::numeric_limits<unsigned>::max();
+        auto const type_it = s.type_map_.find(m.type_);
+        auto const is_list =
+            m.list_ || (type_it != end(s.type_map_) && type_it->second->list_);
         out << "  "  //
             << (m.optional_ ? "std::optional<" : "")
-            << (m.list_ ? use_array ? "std::array<" : "std::vector<" : "");
+            << (is_list ? use_array ? "std::array<" : "std::vector<" : "");
 
         auto const data_type = is_special(s, m.type_);
         if (data_type.has_value()) {
@@ -232,10 +235,10 @@ void generate_header(std::ostream& out, schema const& s, type const& t) {
         if (use_array) {
           out << ", " << m.max_size_;
         }
-        out << (m.list_ ? ">" : "")  //
+        out << (is_list ? ">" : "")  //
             << (m.optional_ ? ">" : "")  //
             << " " << m.name_ << "_"
-            << (!data_type.has_value() && !m.list_ && !m.optional_ ? "{nullptr}"
+            << (!data_type.has_value() && !is_list && !m.optional_ ? "{nullptr}"
                                                                    : "")
             << ";\n";
       }

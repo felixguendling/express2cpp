@@ -23,7 +23,7 @@ std::string ifc_str(std::string const& guid) {
 #96927 = IFCREPRESENTATIONMAP(#96929,#96928);
 #96930 = IFCCARTESIANPOINT((0.000000,0.000000,0.000000));
 #96931 = IFCDIRECTION((0.000000,0.000000,1.000000));
-#96932 = IFCDIRECTION((1.000000,0.000000,0.000000));git s
+#96932 = IFCDIRECTION((1.000000,0.000000,0.000000));
 #96929 = IFCAXIS2PLACEMENT3D(#96930, #96931, #96932);
 #96928 = IFCSHAPEREPRESENTATION(#20, 'Body', 'MappedRepresentation', (#92397,#94162,#96919));
 #96919 = IFCMAPPEDITEM(#96913,#96920);
@@ -72,25 +72,20 @@ TEST_CASE("parse id select") {
   CHECK(shading->SurfaceColour_->Blue_ == 0.2);
 }
 
-TEST_CASE("parse ifc site") {
+TEST_CASE("does not define ContainsElements Parameter") {
+  constexpr auto const* const input =
+      R"(#22=IFCSITE('21yqcJ2bbAHBf6yeMkCLmK',#5,'Site','Site',$,#23,$,$,.ELEMENT.,$,$,$,$,$);)";
 
-  SUBCASE("does not define ContainsElements Parameter") {
-    auto const constexpr input =
-        R"(#22=IFCSITE('21yqcJ2bbAHBf6yeMkCLmK',#5,'Site','Site',$,#23,$,$,.ELEMENT.,$,$,$,$,$);)";
+  auto model = IFC2X3::parse(input);
+  auto const& site = model.get_entity<IFC2X3::IfcSite>(22);
+  CHECK(site.GlobalId_ == "21yqcJ2bbAHBf6yeMkCLmK");
+}
 
-    auto model = IFC2X3::parse(input);
-    auto const& site = model.get_entity<IFC2X3::IfcSite>(step::id_t{22});
-    CHECK(site.GlobalId_ == "21yqcJ2bbAHBf6yeMkCLmK");
-  }
+TEST_CASE("defines ContainsElements Parameter") {
+  constexpr auto const* const input =
+      R"(#23 = IFCSITE('2xNM1YvyH50w3CkBOfaqX1', #2, 'Default Site', 'Description of Default Site', $, #24, $, $, .ELEMENT., (24, 28, 0), (54, 25, 0), $, $, $);)";
 
-  SUBCASE("defines ContainsElements Parameter") {
-    auto const constexpr input =
-        R"(#23 = IFCSITE('2xNM1YvyH50w3CkBOfaqX1', #2, 'Default Site',
-          'Description of Default Site', $, #24, $, $, .ELEMENT., (24, 28, 0),
-          (54, 25, 0), $, $, $);)";
-
-    auto model = IFC2X3::parse(input);
-    auto const& site = model.get_entity<IFC2X3::IfcSite>(step::id_t{23});
-    CHECK(site.GlobalId_ == "2xNM1YvyH50w3CkBOfaqX1");
-  }
+  auto model = IFC2X3::parse(input);
+  auto const& site = model.get_entity<IFC2X3::IfcSite>(23);
+  CHECK(site.GlobalId_ == "2xNM1YvyH50w3CkBOfaqX1");
 }

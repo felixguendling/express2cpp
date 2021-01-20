@@ -2,6 +2,7 @@
 
 #include <iosfwd>
 #include <memory>
+#include <string_view>
 #include <vector>
 
 namespace step {
@@ -15,6 +16,7 @@ struct root_entity {
   root_entity& operator=(root_entity const&) = delete;
   root_entity& operator=(root_entity&&) = delete;
   virtual ~root_entity() = default;
+  virtual std::string_view name() const = 0;
   virtual void resolve(std::vector<root_entity*> const&) = 0;
   virtual void write(write_context const&, std::ostream&,
                      bool write_type_name) const = 0;

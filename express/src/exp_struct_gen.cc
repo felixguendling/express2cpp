@@ -209,6 +209,7 @@ void generate_header(std::ostream& out, schema const& s, type const& t) {
       out << " {\n"
           << "  static constexpr auto const NAME = \""
           << boost::to_upper_copy<std::string>(t.name_) << "\";\n"
+          << "  std::string_view name() const override { return NAME; }\n"
           << "  friend void parse_step(utl::cstr&, " << t.name_ << "&);\n"
           << "  void resolve(std::vector<root_entity*> const&) override;\n"
              "  void write(step::write_context const&, std::ostream&, bool "

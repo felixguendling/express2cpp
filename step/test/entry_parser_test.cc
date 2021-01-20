@@ -53,6 +53,8 @@ TEST_CASE("parse product") {
   CHECK(bep.Tag_ == "Tag:88209840");
 
   CHECK(!bep.CompositionType_.has_value());
+
+  CHECK(bep.name() == "IFCBUILDINGELEMENTPROXY");
 }
 
 TEST_CASE("parse share representation") {

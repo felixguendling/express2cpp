@@ -73,12 +73,24 @@ TEST_CASE("parse id select") {
 }
 
 TEST_CASE("parse ifc site") {
-  auto const constexpr input =
-      "#23 = IFCSITE('2xNM1YvyH50w3CkBOfaqX1', #2, 'Default Site', "
-      "'Description of Default Site', $, #24, $, $, .ELEMENT., (24, 28, 0), "
-      "(54, 25, 0), $, $, $);";
 
-  auto model = IFC2X3::parse(input);
-  auto const& site = model.get_entity<IFC2X3::IfcSite>(step::id_t{23});
-  CHECK(site.GlobalId_ == "2xNM1YvyH50w3CkBOfaqX1");
+  SUBCASE("does not define ContainsElements Parameter") {
+    auto const constexpr input =
+        R"(#22=IFCSITE('21yqcJ2bbAHBf6yeMkCLmK',#5,'Site','Site',$,#23,$,$,.ELEMENT.,$,$,$,$,$);)";
+
+    auto model = IFC2X3::parse(input);
+    auto const& site = model.get_entity<IFC2X3::IfcSite>(step::id_t{22});
+    CHECK(site.GlobalId_ == "21yqcJ2bbAHBf6yeMkCLmK");
+  }
+
+  SUBCASE("defines ContainsElements Parameter") {
+    auto const constexpr input =
+        R"(#23 = IFCSITE('2xNM1YvyH50w3CkBOfaqX1', #2, 'Default Site',
+          'Description of Default Site', $, #24, $, $, .ELEMENT., (24, 28, 0),
+          (54, 25, 0), $, $, $);)";
+
+    auto model = IFC2X3::parse(input);
+    auto const& site = model.get_entity<IFC2X3::IfcSite>(step::id_t{23});
+    CHECK(site.GlobalId_ == "2xNM1YvyH50w3CkBOfaqX1");
+  }
 }

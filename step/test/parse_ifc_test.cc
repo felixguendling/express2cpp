@@ -88,4 +88,6 @@ TEST_CASE("defines ContainsElements Parameter") {
   auto model = IFC2X3::parse(input);
   auto const& site = model.get_entity<IFC2X3::IfcSite>(23);
   CHECK(site.GlobalId_ == "2xNM1YvyH50w3CkBOfaqX1");
+  CHECK(site.RefLatitude_ == std::vector{24, 28, 0});
+  CHECK(site.RefLongitude_ == std::vector{54, 25, 0});
 }

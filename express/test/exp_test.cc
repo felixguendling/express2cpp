@@ -253,6 +253,42 @@ TEST_CASE("parse test schema") {
   CHECK(ifc_port.subtype_of_ == "IfcProduct");
 }
 
+TEST_CASE("parse ifc site") {
+  constexpr auto const* const exp_input = R"(
+SCHEMA IFC2X3;
+
+TYPE IfcCompoundPlaneAngleMeasure = LIST [3:4] OF INTEGER;
+ WHERE
+	WR1 : { -360 <= SELF[1] < 360 };
+	WR2 : { -60 <= SELF[2] < 60 };
+	WR3 : { -60 <= SELF[3] < 60 };
+	WR4 : ((SELF[1] >= 0) AND (SELF[2] >= 0) AND (SELF[3] >= 0)) OR ((SELF[1] <= 0) AND (SELF[2] <= 0) AND (SELF[3] <= 0));
+END_TYPE;
+
+ENTITY IfcSite
+ SUBTYPE OF (IfcSpatialStructureElement);
+	RefLatitude : OPTIONAL IfcCompoundPlaneAngleMeasure;
+	RefLongitude : OPTIONAL IfcCompoundPlaneAngleMeasure;
+	RefElevation : OPTIONAL IfcLengthMeasure;
+	LandTitleNumber : OPTIONAL IfcLabel;
+	SiteAddress : OPTIONAL IfcPostalAddress;
+END_ENTITY;
+
+END_SCHEMA
+)";
+
+  auto const schema = parse(exp_input);
+  REQUIRE(schema.types_.size() == 2U);
+
+  auto const& angle = schema.types_.at(0);
+  CHECK(angle.list_ == true);
+  CHECK(angle.data_type_ == data_type::INTEGER);
+
+  auto const& site = schema.types_.at(1);
+  CHECK(site.name_ == "IfcSite");
+  CHECK(site.members_.at(1).type_ == "IfcCompoundPlaneAngleMeasure");
+}
+
 TEST_CASE("parse ifc schema") {
   boost::filesystem::current_path(TEST_EXECUTION_DIR);
   auto const f =

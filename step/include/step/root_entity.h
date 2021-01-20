@@ -5,6 +5,8 @@
 #include <string_view>
 #include <vector>
 
+#include "step/id_t.h"
+
 namespace step {
 
 struct write_context;
@@ -25,6 +27,7 @@ struct root_entity {
     e.write(ctx, out, true);
   }
   std::size_t line_idx_{0U};
+  id_t id_;
 };
 
 using entity_ptr = std::unique_ptr<root_entity>;

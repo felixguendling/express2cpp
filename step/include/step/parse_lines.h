@@ -29,6 +29,7 @@ model parse_lines(Parser const& p, utl::cstr step) {
       }
 
       auto* const e_ptr = m.entity_mem_.emplace_back(std::move(*entity)).get();
+      e_ptr->id_ = split->id_;
       if (m.id_to_entity_.size() <= split->id_.id_) {
         m.id_to_entity_.resize(split->id_.id_ + 1);
       }

@@ -4,6 +4,7 @@
 #include "IFC2X3/IfcFlowController.h"
 #include "IFC2X3/IfcProductRepresentation.h"
 #include "IFC2X3/IfcRepresentation.h"
+#include "IFC2X3/IfcSite.h"
 #include "IFC2X3/IfcSurfaceStyle.h"
 #include "IFC2X3/IfcSurfaceStyleRendering.h"
 #include "IFC2X3/parser.h"
@@ -22,7 +23,7 @@ std::string ifc_str(std::string const& guid) {
 #96927 = IFCREPRESENTATIONMAP(#96929,#96928);
 #96930 = IFCCARTESIANPOINT((0.000000,0.000000,0.000000));
 #96931 = IFCDIRECTION((0.000000,0.000000,1.000000));
-#96932 = IFCDIRECTION((1.000000,0.000000,0.000000));
+#96932 = IFCDIRECTION((1.000000,0.000000,0.000000));git s
 #96929 = IFCAXIS2PLACEMENT3D(#96930, #96931, #96932);
 #96928 = IFCSHAPEREPRESENTATION(#20, 'Body', 'MappedRepresentation', (#92397,#94162,#96919));
 #96919 = IFCMAPPEDITEM(#96913,#96920);
@@ -69,4 +70,15 @@ TEST_CASE("parse id select") {
   CHECK(shading->SurfaceColour_->Red_ == 0.2);
   CHECK(shading->SurfaceColour_->Green_ == 0.2);
   CHECK(shading->SurfaceColour_->Blue_ == 0.2);
+}
+
+TEST_CASE("parse ifc site") {
+  auto const constexpr input =
+      "#23 = IFCSITE('2xNM1YvyH50w3CkBOfaqX1', #2, 'Default Site', "
+      "'Description of Default Site', $, #24, $, $, .ELEMENT., (24, 28, 0), "
+      "(54, 25, 0), $, $, $);";
+
+  auto model = IFC2X3::parse(input);
+  auto const& site = model.get_entity<IFC2X3::IfcSite>(step::id_t{23});
+  CHECK(site.GlobalId_ == "2xNM1YvyH50w3CkBOfaqX1");
 }

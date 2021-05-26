@@ -39,6 +39,7 @@ std::optional<std::string> is_special(schema const& s,
       case data_type::ENUM: return type_name;
       case data_type::ENTITY: return std::nullopt;
       case data_type::SELECT: return type_name;
+      case data_type::BINARY: return "std::vector<uint8_t>";
       case data_type::UNKOWN: throw std::runtime_error{"unkown type"};
     }
   }

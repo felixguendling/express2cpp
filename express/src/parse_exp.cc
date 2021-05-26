@@ -73,6 +73,7 @@ struct express_grammar : qi::grammar<Iterator, schema(), ascii::space_type> {
       ("INTEGER", data_type::INTEGER)
       ("ENTITY", data_type::ENTITY)
       ("ENUM", data_type::ENUM)
+      ("BINARY", data_type::BINARY)
       ("SELECT", data_type::SELECT);
     // clang-format on
 
@@ -99,9 +100,9 @@ struct express_grammar : qi::grammar<Iterator, schema(), ascii::space_type> {
     type_ = "TYPE "  //
             >> as_string[lexeme[+(char_ - '=' - space)]][at_c<0>(_val) = _1] >>
             '='  //
-            >> qi::matches[(string("LIST") | "ARRAY") >> '[' >>
-                           int_[at_c<6>(_val) = _1] >> ':' >>
-                           int_[at_c<7>(_val) = _1] >> ']' >> "OF"]
+            >> qi::matches[(string("LIST") | "ARRAY" | "SET") >> '[' >>
+                           (int_[at_c<6>(_val) = _1] | '?') >> ':' >>
+                           (int_[at_c<7>(_val) = _1] | '?') >> ']' >> "OF"]
                           [at_c<5>(_val) = _1] >>
             (data_type_[at_c<1>(_val) = _1] |
              as_string[lexeme[+(char_ - ';' - space)]]
@@ -112,7 +113,7 @@ struct express_grammar : qi::grammar<Iterator, schema(), ascii::space_type> {
 
     member_ = as_string[lexeme[+(char_ - space)]][at_c<0>(_val) = _1]  //
               >> ':' >> qi::matches["OPTIONAL"][at_c<2>(_val) = _1]  //
-              >> qi::matches[(string("LIST") | string("SET")) >> '[' >>
+              >> qi::matches[(string("LIST") | "ARRAY" | "SET") >> '[' >>
                              (int_[at_c<4>(_val) = _1] | '?') >> ':' >>
                              (int_[at_c<5>(_val) = _1] | '?') >> ']' >> "OF" >>
                              -string("UNIQUE")][at_c<3>(_val) = _1] >>

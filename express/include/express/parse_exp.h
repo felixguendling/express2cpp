@@ -20,11 +20,12 @@ enum class data_type {
   ENTITY,
   ENUM,
   SELECT,
-  ALIAS
+  ALIAS,
+  BINARY
 };
 constexpr char const* data_type_str[] = {
     "UNKOWN",  "BOOL",   "LOGICAL", "REAL",   "NUMBER", "STRING",
-    "INTEGER", "ENTITY", "ENUM",    "SELECT", "ALIAS"};
+    "INTEGER", "ENTITY", "ENUM",    "SELECT", "ALIAS",  "BINARY"};
 
 struct parser_exception : public std::exception {
   parser_exception(char const* from, char const* to) : from_{from}, to_{to} {}

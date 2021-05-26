@@ -1,6 +1,7 @@
 #include <iostream>
 #include <queue>
 #include <set>
+#include <sstream>
 #include <string>
 #include <unordered_map>
 
@@ -10,6 +11,7 @@
 
 #include "cista/mmap.h"
 
+#include "express/exp_struct_gen.h"
 #include "express/parse_exp.h"
 
 #include "test_dir.h"
@@ -318,4 +320,75 @@ TEST_CASE("parse ifc schema") {
   }
 
   CHECK(get_subtypes_of(schema, "IfcProduct").size() == 90);
+}
+
+TEST_CASE("alias to SET") {
+  constexpr auto const exp_input = R"(
+SCHEMA IFC2X3;
+
+ENTITY IfcRoot
+ ABSTRACT SUPERTYPE OF (ONEOF
+    (IfcObjectDefinition
+    ,IfcPropertyDefinition
+    ,IfcRelationship));
+	GlobalId : IfcGloballyUniqueId;
+	OwnerHistory : OPTIONAL IfcOwnerHistory;
+	Name : OPTIONAL IfcLabel;
+	Description : OPTIONAL IfcText;
+ UNIQUE
+	UR1 : GlobalId;
+END_ENTITY;
+
+TYPE IfcPropertySetDefinitionSet = SET [1:?] OF IfcPropertySetDefinition;
+END_TYPE;
+
+ENTITY IfcPropertyDefinition
+ ABSTRACT SUPERTYPE OF (ONEOF
+    (IfcPropertySetDefinition
+    ,IfcPropertyTemplateDefinition))
+ SUBTYPE OF (IfcRoot);
+ INVERSE
+	HasContext : SET [0:1] OF IfcRelDeclares FOR RelatedDefinitions;
+	HasAssociations : SET [0:?] OF IfcRelAssociates FOR RelatedObjects;
+END_ENTITY;
+
+ENTITY IfcPropertySetDefinition
+ ABSTRACT SUPERTYPE OF (ONEOF
+    (IfcPreDefinedPropertySet
+    ,IfcPropertySet
+    ,IfcQuantitySet))
+ SUBTYPE OF (IfcPropertyDefinition);
+ INVERSE
+	DefinesType : SET [0:?] OF IfcTypeObject FOR HasPropertySets;
+	IsDefinedBy : SET [0:?] OF IfcRelDefinesByTemplate FOR RelatedPropertySets;
+	DefinesOccurrence : SET [0:?] OF IfcRelDefinesByProperties FOR RelatingPropertyDefinition;
+END_ENTITY;
+
+TYPE IfcPropertySetDefinitionSelect = SELECT
+	(IfcPropertySetDefinition
+	,IfcPropertySetDefinitionSet);
+END_TYPE;
+
+ENTITY IfcRelDefinesByProperties
+ SUBTYPE OF (IfcRelDefines);
+	RelatingPropertyDefinition : IfcPropertySetDefinitionSelect;
+ WHERE
+	NoRelatedTypeObject : SIZEOF(QUERY(Types <* SELF\IfcRelDefinesByProperties.RelatedObjects |  'IFC4.IFCTYPEOBJECT' IN TYPEOF(Types))) = 0;
+END_ENTITY;
+
+END_SCHEMA)";
+
+  auto const schema = parse(exp_input);
+  REQUIRE(schema.types_.size() == 6U);
+
+  auto const& x = *schema.type_map_.at("IfcPropertySetDefinitionSet");
+  CHECK(x.list_);
+  CHECK(x.alias_ == "IfcPropertySetDefinition");
+  CHECK(x.data_type_ == data_type::ALIAS);
+
+  std::stringstream ss;
+  for (auto const& t : schema.types_) {
+    generate_header(ss, schema, t);
+  }
+  std::cout << ss.str() << "\n";
 }

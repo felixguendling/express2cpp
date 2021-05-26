@@ -14,9 +14,14 @@
 
 namespace express {
 
-static auto const special = std::map<std::string, std::string>{
-    {"BOOLEAN", "bool"}, {"LOGICAL", "bool"},       {"REAL", "double"},
-    {"INTEGER", "int"},  {"STRING", "std::string"}, {"BINARY(32)", "uint32_t"}};
+static auto const special =
+    std::map<std::string, std::string>{{"BOOLEAN", "bool"},
+                                       {"LOGICAL", "bool"},
+                                       {"REAL", "double"},
+                                       {"INTEGER", "int"},
+                                       {"STRING", "std::string"},
+                                       {"BINARY(32)", "uint32_t"},
+                                       {"BINARY", "std::vector<uint8_t>"}};
 
 std::optional<std::string> is_special(schema const& s,
                                       std::string const& type_name) {
@@ -58,7 +63,8 @@ bool is_value_type(schema const& s, type const& t) {
     case data_type::NUMBER:
     case data_type::STRING:
     case data_type::INTEGER:
-    case data_type::ENUM: [[fallthrough]];
+    case data_type::ENUM:
+    case data_type::BINARY: [[fallthrough]];
     case data_type::SELECT: return true;
 
     case data_type::ENTITY: return false;
@@ -151,6 +157,10 @@ void generate_header(std::ostream& out, schema const& s, type const& t) {
       out << "using " << t.name_ << " = std::string;\n";
       break;
 
+    case data_type::BINARY:
+      out << "using " << t.name_ << " = std::vector<uint8_t>;\n";
+      break;
+
     case data_type::SELECT:
       for (auto const& m : t.details_) {
         if (!is_value_type(s, *s.type_map_.at(m))) {
@@ -174,7 +184,15 @@ void generate_header(std::ostream& out, schema const& s, type const& t) {
       break;
 
     case data_type::ALIAS:
-      out << "using " << t.name_ << " = " << t.alias_ << ";\n";
+      out << "using " << t.name_ << " = ";
+      if (t.list_) {
+        out << "std::vector<";
+      }
+      out << t.alias_;
+      if (t.list_) {
+        out << ">";
+      }
+      out << ";\n";
       break;
 
     case data_type::ENUM:

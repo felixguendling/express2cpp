@@ -323,7 +323,7 @@ TEST_CASE("parse ifc schema") {
 }
 
 TEST_CASE("alias to SET") {
-  constexpr auto const exp_input = R"(
+  constexpr auto const* exp_input = R"(
 SCHEMA IFC2X3;
 
 ENTITY IfcRoot

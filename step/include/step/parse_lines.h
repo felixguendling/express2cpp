@@ -35,7 +35,7 @@ model parse_lines(Parser const& p, utl::cstr step) {
       }
       m.id_to_entity_[split->id_.id_] = e_ptr;
     } catch (std::exception const& e) {
-      fmt::print("unable to parse line {}: {}", line_idx + 1, line.view());
+      fmt::print("unable to parse line {}: {}\n", line_idx + 1, line.view());
     }
   }
   for (auto& ptr : m.entity_mem_) {

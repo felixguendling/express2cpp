@@ -1,6 +1,7 @@
 #include <iostream>
 #include <queue>
 #include <set>
+#include <sstream>
 #include <string>
 #include <unordered_map>
 
@@ -10,6 +11,7 @@
 
 #include "cista/mmap.h"
 
+#include "express/exp_struct_gen.h"
 #include "express/parse_exp.h"
 
 #include "test_dir.h"
@@ -152,7 +154,7 @@ TEST_CASE("abstract supertype") {
       "END_SCHEMA";
 
   auto const schema = parse(s);
-  CHECK(schema.types_.size() == 1);
+  REQUIRE(schema.types_.size() == 1);
   CHECK(schema.types_.front().name_ == "IfcTimeSeries");
 
   auto const ifc_time_series = schema.types_.front();
@@ -167,14 +169,15 @@ TEST_CASE("abstract supertype") {
   CHECK(ifc_time_series.members_[i++].name_ == "Unit");
 
   i = 0U;
-  CHECK(ifc_time_series.members_[i++].type_ == "IfcLabel");
-  CHECK(ifc_time_series.members_[i++].type_ == "IfcText");
-  CHECK(ifc_time_series.members_[i++].type_ == "IfcDateTimeSelect");
-  CHECK(ifc_time_series.members_[i++].type_ == "IfcDateTimeSelect");
-  CHECK(ifc_time_series.members_[i++].type_ == "IfcTimeSeriesDataTypeEnum");
-  CHECK(ifc_time_series.members_[i++].type_ == "IfcDataOriginEnum");
-  CHECK(ifc_time_series.members_[i++].type_ == "IfcLabel");
-  CHECK(ifc_time_series.members_[i++].type_ == "IfcUnit");
+  CHECK(ifc_time_series.members_[i++].get_type_name() == "IfcLabel");
+  CHECK(ifc_time_series.members_[i++].get_type_name() == "IfcText");
+  CHECK(ifc_time_series.members_[i++].get_type_name() == "IfcDateTimeSelect");
+  CHECK(ifc_time_series.members_[i++].get_type_name() == "IfcDateTimeSelect");
+  CHECK(ifc_time_series.members_[i++].get_type_name() ==
+        "IfcTimeSeriesDataTypeEnum");
+  CHECK(ifc_time_series.members_[i++].get_type_name() == "IfcDataOriginEnum");
+  CHECK(ifc_time_series.members_[i++].get_type_name() == "IfcLabel");
+  CHECK(ifc_time_series.members_[i++].get_type_name() == "IfcUnit");
 
   i = 0U;
   CHECK(ifc_time_series.members_[i++].optional_ == false);
@@ -240,8 +243,11 @@ END_SCHEMA
   auto const schema = parse(input);
   REQUIRE(schema.types_.size() == 1);
   REQUIRE(schema.types_.front().members_.size() == 2);
-  CHECK(schema.types_.front().members_.front().list_);
-  CHECK(!schema.types_.front().members_.back().list_);
+
+  auto const& m = schema.types_.front().members_.front();
+  CHECK(m.name_ == "RepresentationMaps");
+  CHECK(m.is_list(schema));
+  CHECK(m.get_type_name() == "IfcRepresentationMap");
 }
 
 TEST_CASE("parse test schema") {
@@ -286,7 +292,8 @@ END_SCHEMA
 
   auto const& site = schema.types_.at(1);
   CHECK(site.name_ == "IfcSite");
-  CHECK(site.members_.at(1).type_ == "IfcCompoundPlaneAngleMeasure");
+  CHECK(boost::get<type_name>(site.members_.at(1).type_).name_ ==
+        "IfcCompoundPlaneAngleMeasure");
 }
 
 TEST_CASE("parse ifc schema") {
@@ -308,14 +315,163 @@ TEST_CASE("parse ifc schema") {
     }
     std::cout << "\n";
     for (auto const& m : t.members_) {
-      std::cout << "-     name=\"" << m.name_ << "\", type=\"" << m.type_
-                << "\" ";
-      if (m.list_) {
-        std::cout << "LIST[" << m.min_size_ << ", " << m.max_size_ << "] ";
-      }
+      std::cout << "-     name=\"" << m.name_ << "\", type=\"";
+      struct visit {
+        void operator()(express::type_name const& s) {
+          std::cout << s.name_ << "\n";
+        }
+        void operator()(express::list const& l) {
+          std::cout << "LIST[" << l.min_ << ", " << l.max_ << "] ";
+          boost::apply_visitor([&](auto&& el) { (*this)(el); }, l.m_);
+        }
+      };
+      boost::apply_visitor(visit{}, m.type_);
+      std::cout << "\" ";
       std::cout << (m.optional_ ? "OPTIONAL" : "") << "\n";
     }
   }
 
   CHECK(get_subtypes_of(schema, "IfcProduct").size() == 90);
+}
+
+TEST_CASE("alias to SET") {
+  constexpr auto const* exp_input = R"(
+SCHEMA IFC2X3;
+
+ENTITY IfcRoot
+ ABSTRACT SUPERTYPE OF (ONEOF
+    (IfcObjectDefinition
+    ,IfcPropertyDefinition
+    ,IfcRelationship));
+	GlobalId : IfcGloballyUniqueId;
+	OwnerHistory : OPTIONAL IfcOwnerHistory;
+	Name : OPTIONAL IfcLabel;
+	Description : OPTIONAL IfcText;
+ UNIQUE
+	UR1 : GlobalId;
+END_ENTITY;
+
+TYPE IfcPropertySetDefinitionSet = SET [1:?] OF IfcPropertySetDefinition;
+END_TYPE;
+
+ENTITY IfcPropertyDefinition
+ ABSTRACT SUPERTYPE OF (ONEOF
+    (IfcPropertySetDefinition
+    ,IfcPropertyTemplateDefinition))
+ SUBTYPE OF (IfcRoot);
+ INVERSE
+	HasContext : SET [0:1] OF IfcRelDeclares FOR RelatedDefinitions;
+	HasAssociations : SET [0:?] OF IfcRelAssociates FOR RelatedObjects;
+END_ENTITY;
+
+ENTITY IfcPropertySetDefinition
+ ABSTRACT SUPERTYPE OF (ONEOF
+    (IfcPreDefinedPropertySet
+    ,IfcPropertySet
+    ,IfcQuantitySet))
+ SUBTYPE OF (IfcPropertyDefinition);
+ INVERSE
+	DefinesType : SET [0:?] OF IfcTypeObject FOR HasPropertySets;
+	IsDefinedBy : SET [0:?] OF IfcRelDefinesByTemplate FOR RelatedPropertySets;
+	DefinesOccurrence : SET [0:?] OF IfcRelDefinesByProperties FOR RelatingPropertyDefinition;
+END_ENTITY;
+
+TYPE IfcPropertySetDefinitionSelect = SELECT
+	(IfcPropertySetDefinition
+	,IfcPropertySetDefinitionSet);
+END_TYPE;
+
+ENTITY IfcRelDefinesByProperties
+ SUBTYPE OF (IfcRelDefines);
+	RelatingPropertyDefinition : IfcPropertySetDefinitionSelect;
+ WHERE
+	NoRelatedTypeObject : SIZEOF(QUERY(Types <* SELF\IfcRelDefinesByProperties.RelatedObjects |  'IFC4.IFCTYPEOBJECT' IN TYPEOF(Types))) = 0;
+END_ENTITY;
+
+END_SCHEMA)";
+
+  auto const schema = parse(exp_input);
+  REQUIRE(schema.types_.size() == 6U);
+
+  auto const& x = *schema.type_map_.at("IfcPropertySetDefinitionSet");
+  CHECK(x.list_);
+  CHECK(x.alias_ == "IfcPropertySetDefinition");
+  CHECK(x.data_type_ == data_type::ALIAS);
+
+  std::stringstream ss;
+  for (auto const& t : schema.types_) {
+    CHECK_NOTHROW(generate_header(ss, schema, t));
+  }
+}
+
+TEST_CASE("list of list") {
+  constexpr auto const* exp_input = R"(
+SCHEMA IFC2X3;
+
+TYPE IfcLengthMeasure = REAL;
+END_TYPE;
+
+ENTITY IfcCartesianPoint
+ SUBTYPE OF (IfcPoint);
+	Coordinates : LIST [1:3] OF IfcLengthMeasure;
+ DERIVE
+	Dim : IfcDimensionCount := HIINDEX(Coordinates);
+ WHERE
+	CP2Dor3D : HIINDEX(Coordinates) >= 2;
+END_ENTITY;
+
+ENTITY IfcBSplineSurface
+ ABSTRACT SUPERTYPE OF (ONEOF
+    (IfcBSplineSurfaceWithKnots))
+ SUBTYPE OF (IfcBoundedSurface);
+	ControlPointsList : LIST [2:?] OF LIST [2:?] OF IfcCartesianPoint;
+ DERIVE
+	UUpper : IfcInteger := SIZEOF(ControlPointsList) - 1;
+	VUpper : IfcInteger := SIZEOF(ControlPointsList[1]) - 1;
+	ControlPoints : ARRAY [0:UUpper] OF ARRAY [0:VUpper] OF IfcCartesianPoint := IfcMakeArrayOfArray(ControlPointsList,
+0,UUpper,0,VUpper);
+END_ENTITY;
+
+END_SCHEMA)";
+
+  auto const schema = parse(exp_input);
+
+  std::stringstream ss;
+  for (auto const& t : schema.types_) {
+    CHECK_NOTHROW(generate_header(ss, schema, t));
+  }
+}
+
+TEST_CASE("alias vector member") {
+  constexpr auto const* exp_input = R"(
+SCHEMA IFC2X3;
+
+ENTITY IfcSpatialStructureElementType
+ ABSTRACT SUPERTYPE OF (ONEOF
+	(IfcSpaceType))
+ SUBTYPE OF (IfcElementType);
+END_ENTITY;
+
+TYPE IfcCompoundPlaneAngleMeasure = LIST [3:4] OF INTEGER;
+ WHERE
+	WR1 : { -360 <= SELF[1] < 360 };
+	WR2 : { -60 <= SELF[2] < 60 };
+	WR3 : { -60 <= SELF[3] < 60 };
+	WR4 : ((SELF[1] >= 0) AND (SELF[2] >= 0) AND (SELF[3] >= 0)) OR ((SELF[1] <= 0) AND (SELF[2] <= 0) AND (SELF[3] <= 0));
+END_TYPE;
+
+ENTITY IfcSite;
+	RefLatitude : OPTIONAL IfcCompoundPlaneAngleMeasure;
+	RefLongitude : OPTIONAL IfcCompoundPlaneAngleMeasure;
+END_ENTITY;
+
+END_SCHEMA
+)";
+
+  auto const schema = parse(exp_input);
+
+  std::stringstream ss;
+  for (auto const& t : schema.types_) {
+    CHECK_NOTHROW(generate_header(ss, schema, t));
+  }
 }

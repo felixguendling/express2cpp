@@ -11,9 +11,9 @@
 #include "utl/parser/cstr.h"
 #include "utl/verify.h"
 
+#include "step/exp_logical.h"
 #include "step/id_t.h"
 #include "step/is_collection.h"
-#include "step/logical.h"
 
 namespace step {
 
@@ -84,16 +84,16 @@ inline void parse_step(utl::cstr& s, bool& val) {
   ++s;
 }
 
-inline void parse_step(utl::cstr& s, logical& val) {
+inline void parse_step(utl::cstr& s, exp_logical& val) {
   utl::verify(s.len > 0 && s[0] == '.', "expected bool, got {}", s.view());
   ++s;
 
   utl::verify(s.len > 0 && (s[0] == 'T' || s[0] == 'F' || s[0] == 'U'),
               "expected logical '.T.', '.F.', or '.U.', got {}", s.view());
   switch (s[0]) {
-    case 'T': val = logical::TRUE;
-    case 'F': val = logical::FALSE;
-    case 'U': val = logical::UNKNOWN;
+    case 'T': val = exp_logical::TRUE;
+    case 'F': val = exp_logical::FALSE;
+    case 'U': val = exp_logical::UNKNOWN;
   }
   ++s;
 

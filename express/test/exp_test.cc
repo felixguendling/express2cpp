@@ -246,12 +246,8 @@ END_SCHEMA
 
   auto const& m = schema.types_.front().members_.front();
   CHECK(m.name_ == "RepresentationMaps");
-  CHECK(m.is_list());
+  CHECK(m.is_list(schema));
   CHECK(m.get_type_name() == "IfcRepresentationMap");
-
-  // TODO(felix)
-  //  CHECK(schema.types_.front().members_.front().list_);
-  //  CHECK(!schema.types_.front().members_.back().list_);
 }
 
 TEST_CASE("parse test schema") {
@@ -437,6 +433,40 @@ ENTITY IfcBSplineSurface
 END_ENTITY;
 
 END_SCHEMA)";
+
+  auto const schema = parse(exp_input);
+
+  std::stringstream ss;
+  for (auto const& t : schema.types_) {
+    CHECK_NOTHROW(generate_header(ss, schema, t));
+  }
+}
+
+TEST_CASE("alias vector member") {
+  constexpr auto const* exp_input = R"(
+SCHEMA IFC2X3;
+
+ENTITY IfcSpatialStructureElementType
+ ABSTRACT SUPERTYPE OF (ONEOF
+	(IfcSpaceType))
+ SUBTYPE OF (IfcElementType);
+END_ENTITY;
+
+TYPE IfcCompoundPlaneAngleMeasure = LIST [3:4] OF INTEGER;
+ WHERE
+	WR1 : { -360 <= SELF[1] < 360 };
+	WR2 : { -60 <= SELF[2] < 60 };
+	WR3 : { -60 <= SELF[3] < 60 };
+	WR4 : ((SELF[1] >= 0) AND (SELF[2] >= 0) AND (SELF[3] >= 0)) OR ((SELF[1] <= 0) AND (SELF[2] <= 0) AND (SELF[3] <= 0));
+END_TYPE;
+
+ENTITY IfcSite;
+	RefLatitude : OPTIONAL IfcCompoundPlaneAngleMeasure;
+	RefLongitude : OPTIONAL IfcCompoundPlaneAngleMeasure;
+END_ENTITY;
+
+END_SCHEMA
+)";
 
   auto const schema = parse(exp_input);
 

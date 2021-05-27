@@ -35,6 +35,7 @@ struct parser_exception : public std::exception {
 };
 
 struct list;
+struct schema;
 
 struct type_name {
   std::string name_;
@@ -48,7 +49,7 @@ struct list {
 };
 
 struct member {
-  bool is_list() const;
+  bool is_list(schema const&) const;
   std::string const& get_type_name() const;
 
   std::string name_;
@@ -74,5 +75,7 @@ struct schema {
 };
 
 schema parse(std::string_view);
+
+bool is_list(schema const&, std::string const& type_name);
 
 }  // namespace express

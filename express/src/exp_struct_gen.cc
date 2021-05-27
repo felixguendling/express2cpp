@@ -86,7 +86,7 @@ void generate_header(std::ostream& out, schema const& s, type const& t) {
                   [](member const& m) { return m.optional_; });
   auto const uses_list =
       std::any_of(begin(t.members_), end(t.members_),
-                  [](member const& m) { return m.is_list(); });
+                  [&](member const& m) { return m.is_list(s); });
   auto const uses_string =
       t.data_type_ == data_type::STRING ||
       std::any_of(begin(t.members_), end(t.members_), [&](member const& m) {
@@ -234,17 +234,23 @@ void generate_header(std::ostream& out, schema const& s, type const& t) {
 
       for (auto const& m : t.members_) {
         auto const type_it = s.type_map_.find(m.get_type_name());
-        auto const is_list = m.is_list() || (type_it != end(s.type_map_) &&
-                                             type_it->second->list_);
+        auto const is_l = m.is_list(s);
 
         struct visit {
           visit(schema const& s, std::ostream& o) : s_{s}, out_{o} {}
           void operator()(express::type_name const& t) const {
+            auto const l = is_list(s_, t.name_);
+            if (l) {
+              out_ << "std::vector<";
+            }
             if (auto const data_type = is_special(s_, t.name_);
                 data_type.has_value()) {
               out_ << *data_type;
             } else {
               out_ << t.name_ << "*";
+            }
+            if (l) {
+              out_ << ">";
             }
           }
           void operator()(express::list const& l) const {
@@ -265,8 +271,8 @@ void generate_header(std::ostream& out, schema const& s, type const& t) {
         data_type.has_value();
         out << (m.optional_ ? ">" : "")  //
             << " " << m.name_ << "_"
-            << (!data_type.has_value() && !is_list && !m.optional_ ? "{nullptr}"
-                                                                   : "")
+            << (!data_type.has_value() && !is_l && !m.optional_ ? "{nullptr}"
+                                                                : "")
             << ";\n";
       }
       out << "};\n";

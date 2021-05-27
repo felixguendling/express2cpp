@@ -8,7 +8,6 @@
 #include "boost/spirit/include/phoenix_operator.hpp"
 #include "boost/spirit/include/phoenix_stl.hpp"
 #include "boost/spirit/include/qi.hpp"
-#include "boost/variant/recursive_variant.hpp"
 
 #include "utl/verify.h"
 
@@ -54,12 +53,29 @@ BOOST_FUSION_ADAPT_STRUCT(
 
 namespace express {
 
-bool member::is_list() const {
+bool is_list(schema const& s, std::string const& type_name) {
+  if (auto const type_it = s.type_map_.find(type_name);
+      type_it != end(s.type_map_)) {
+    if (type_it->second->data_type_ == data_type::ALIAS) {
+      return is_list(s, type_it->second->alias_);
+    } else {
+      return type_it->second->list_;
+    }
+  } else {
+    return false;
+  }
+}
+
+bool member::is_list(schema const& s) const {
   struct visit {
-    bool operator()(type_name const& s) const { return false; }
+    explicit visit(schema const& s) : s_{s} {}
+    bool operator()(type_name const& s) const {
+      return express::is_list(s_, s.name_);
+    }
     bool operator()(express::list const& l) const { return true; }
+    schema const& s_;
   };
-  return boost::apply_visitor(visit{}, type_);
+  return boost::apply_visitor(visit{s}, type_);
 }
 
 std::string const& member::get_type_name() const {

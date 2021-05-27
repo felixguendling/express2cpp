@@ -91,9 +91,9 @@ inline void parse_step(utl::cstr& s, exp_logical& val) {
   utl::verify(s.len > 0 && (s[0] == 'T' || s[0] == 'F' || s[0] == 'U'),
               "expected logical '.T.', '.F.', or '.U.', got {}", s.view());
   switch (s[0]) {
-    case 'T': val = exp_logical::TRUE;
-    case 'F': val = exp_logical::FALSE;
-    case 'U': val = exp_logical::UNKNOWN;
+    case 'T': val = exp_logical::EXP_TRUE;
+    case 'F': val = exp_logical::EXP_FALSE;
+    case 'U': val = exp_logical::EXP_UNKNOWN;
   }
   ++s;
 

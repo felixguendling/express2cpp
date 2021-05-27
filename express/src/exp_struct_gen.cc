@@ -263,7 +263,6 @@ void generate_header(std::ostream& out, schema const& s, type const& t) {
         boost::apply_visitor(visit{s, out}, m.type_);
 
         auto const data_type = is_special(s, m.get_type_name());
-        data_type.has_value();
         out << (m.optional_ ? ">" : "")  //
             << " " << m.name_ << "_"
             << (!data_type.has_value() && !is_l && !m.optional_ ? "{nullptr}"

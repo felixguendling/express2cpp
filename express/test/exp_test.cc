@@ -168,16 +168,16 @@ TEST_CASE("abstract supertype") {
   CHECK(ifc_time_series.members_[i++].name_ == "UserDefinedDataOrigin");
   CHECK(ifc_time_series.members_[i++].name_ == "Unit");
 
-  // TODO(felix)
-  //  i = 0U;
-  //  CHECK(ifc_time_series.members_[i++].type_ == "IfcLabel");
-  //  CHECK(ifc_time_series.members_[i++].type_ == "IfcText");
-  //  CHECK(ifc_time_series.members_[i++].type_ == "IfcDateTimeSelect");
-  //  CHECK(ifc_time_series.members_[i++].type_ == "IfcDateTimeSelect");
-  //  CHECK(ifc_time_series.members_[i++].type_ == "IfcTimeSeriesDataTypeEnum");
-  //  CHECK(ifc_time_series.members_[i++].type_ == "IfcDataOriginEnum");
-  //  CHECK(ifc_time_series.members_[i++].type_ == "IfcLabel");
-  //  CHECK(ifc_time_series.members_[i++].type_ == "IfcUnit");
+  i = 0U;
+  CHECK(ifc_time_series.members_[i++].get_type_name() == "IfcLabel");
+  CHECK(ifc_time_series.members_[i++].get_type_name() == "IfcText");
+  CHECK(ifc_time_series.members_[i++].get_type_name() == "IfcDateTimeSelect");
+  CHECK(ifc_time_series.members_[i++].get_type_name() == "IfcDateTimeSelect");
+  CHECK(ifc_time_series.members_[i++].get_type_name() ==
+        "IfcTimeSeriesDataTypeEnum");
+  CHECK(ifc_time_series.members_[i++].get_type_name() == "IfcDataOriginEnum");
+  CHECK(ifc_time_series.members_[i++].get_type_name() == "IfcLabel");
+  CHECK(ifc_time_series.members_[i++].get_type_name() == "IfcUnit");
 
   i = 0U;
   CHECK(ifc_time_series.members_[i++].optional_ == false);

@@ -14,14 +14,10 @@
 
 namespace express {
 
-static auto const special =
-    std::map<std::string, std::string>{{"BOOLEAN", "bool"},
-                                       {"LOGICAL", "bool"},
-                                       {"REAL", "double"},
-                                       {"INTEGER", "int"},
-                                       {"STRING", "std::string"},
-                                       {"BINARY(32)", "uint32_t"},
-                                       {"BINARY", "std::vector<uint8_t>"}};
+static auto const special = std::map<std::string, std::string>{
+    {"BOOLEAN", "bool"},       {"LOGICAL", "step::logical"},
+    {"REAL", "double"},        {"INTEGER", "int"},
+    {"STRING", "std::string"}, {"BINARY(32)", "uint32_t"}};
 
 std::optional<std::string> is_special(schema const& s,
                                       std::string const& type_name) {
@@ -31,7 +27,7 @@ std::optional<std::string> is_special(schema const& s,
     switch (t->data_type_) {
       case data_type::ALIAS: return is_special(s, t->alias_);
       case data_type::BOOL: [[fallthrough]];
-      case data_type::LOGICAL: return "bool";
+      case data_type::LOGICAL: return "step::logical";
       case data_type::REAL: [[fallthrough]];
       case data_type::NUMBER: return "double";
       case data_type::STRING: return "std::string";
@@ -120,11 +116,9 @@ void generate_header(std::ostream& out, schema const& s, type const& t) {
         out << "#include \"" << s.name_ << "/" << d << ".h\"\n";
       }
     }
-  }
-  if (t.data_type_ == data_type::ALIAS) {
+  } else if (t.data_type_ == data_type::ALIAS) {
     out << "#include \"" << s.name_ << "/" << t.alias_ << ".h\"\n";
-  }
-  if (t.data_type_ == data_type::ENTITY) {
+  } else if (t.data_type_ == data_type::ENTITY) {
     for (auto const& m : t.members_) {
       if (auto const it = s.type_map_.find(m.get_type_name());
           it != end(s.type_map_) &&
@@ -133,6 +127,8 @@ void generate_header(std::ostream& out, schema const& s, type const& t) {
         out << "#include \"" << s.name_ << "/" << it->second->name_ << ".h\"\n";
       }
     }
+  } else if (t.data_type_ == data_type::LOGICAL) {
+    out << "#include \"step/logical.h\"\n";
   }
 
   if (t.data_type_ == data_type::ENTITY || t.data_type_ == data_type::ENUM) {

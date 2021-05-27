@@ -13,6 +13,7 @@
 
 #include "step/id_t.h"
 #include "step/is_collection.h"
+#include "step/logical.h"
 
 namespace step {
 
@@ -38,10 +39,17 @@ inline std::optional<utl::cstr> get_next_token(utl::cstr const s, char token) {
 }
 
 inline void parse_step(utl::cstr& in, id_t& i) {
-  utl::verify(in.len > 1 && in[0] == '#' && (std::isdigit(in[1]) != 0),
+  utl::verify(in.len > 1 && (in[0] == '$' ||
+                             (in[0] == '#' && (std::isdigit(in[1]) != 0))),
               "expected id, got: {}", in.view());
-  ++in;
-  utl::parse_arg(in, i.id_);
+  if (in[0] == '$') {
+    ++in;
+    fmt::print("warning: id set to $, unable to resolve (-> nullptr)\n");
+    i.id_ = id_t::kInvalid;
+  } else {
+    ++in;
+    utl::parse_arg(in, i.id_);
+  }
 }
 
 template <typename T>
@@ -68,8 +76,25 @@ inline void parse_step(utl::cstr& s, bool& val) {
   ++s;
 
   utl::verify(s.len > 0 && (s[0] == 'T' || s[0] == 'F'),
-              "expected bool, got {}", s.view());
+              "expected bool '.T.' or '.F.', got {}", s.view());
   val = s[0] == 'T';
+  ++s;
+
+  utl::verify(s.len > 0 && s[0] == '.', "expected bool, got {}", s.view());
+  ++s;
+}
+
+inline void parse_step(utl::cstr& s, logical& val) {
+  utl::verify(s.len > 0 && s[0] == '.', "expected bool, got {}", s.view());
+  ++s;
+
+  utl::verify(s.len > 0 && (s[0] == 'T' || s[0] == 'F' || s[0] == 'U'),
+              "expected logical '.T.', '.F.', or '.U.', got {}", s.view());
+  switch (s[0]) {
+    case 'T': val = logical::TRUE;
+    case 'F': val = logical::FALSE;
+    case 'U': val = logical::UNKNOWN;
+  }
   ++s;
 
   utl::verify(s.len > 0 && s[0] == '.', "expected bool, got {}", s.view());

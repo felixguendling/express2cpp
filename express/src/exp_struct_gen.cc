@@ -233,7 +233,6 @@ void generate_header(std::ostream& out, schema const& s, type const& t) {
              "override;\n";
 
       for (auto const& m : t.members_) {
-        auto const type_it = s.type_map_.find(m.get_type_name());
         auto const is_l = m.is_list(s);
 
         struct visit {

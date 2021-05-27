@@ -11,8 +11,6 @@
 
 #include "cista/mmap.h"
 
-#include "utl/overloaded.h"
-
 #include "express/exp_struct_gen.h"
 #include "express/parse_exp.h"
 
@@ -446,5 +444,4 @@ END_SCHEMA)";
   for (auto const& t : schema.types_) {
     CHECK_NOTHROW(generate_header(ss, schema, t));
   }
-  std::cout << ss.str() << "\n";
 }

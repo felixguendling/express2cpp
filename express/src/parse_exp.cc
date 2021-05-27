@@ -18,6 +18,27 @@ namespace ascii = boost::spirit::ascii;
 
 // clang-format off
 BOOST_FUSION_ADAPT_STRUCT(
+    express::schema,
+    (std::string, name_)
+    (std::vector<express::type>, types_)
+);
+BOOST_FUSION_ADAPT_STRUCT(
+    express::list,
+    (unsigned, min_)
+    (unsigned, max_)
+    (express::member_type, m_)
+);
+BOOST_FUSION_ADAPT_STRUCT(
+    express::type_name,
+    (std::string, name_)
+);
+BOOST_FUSION_ADAPT_STRUCT(
+    express::member,
+    (std::string, name_)
+    (express::member_type, type_)
+    (bool, optional_)
+);
+BOOST_FUSION_ADAPT_STRUCT(
     express::type,
     (std::string, name_)
     (express::data_type, data_type_)
@@ -29,23 +50,27 @@ BOOST_FUSION_ADAPT_STRUCT(
     (unsigned, max_size_)
     (std::string, alias_)
 );
-BOOST_FUSION_ADAPT_STRUCT(
-    express::schema,
-    (std::string, name_)
-    (std::vector<express::type>, types_)
-);
-BOOST_FUSION_ADAPT_STRUCT(
-    express::member,
-    (std::string, name_)
-    (std::string, type_)
-    (bool, optional_)
-    (bool, list_)
-    (unsigned, min_size_)
-    (unsigned, max_size_)
-)
 // clang-format on
 
 namespace express {
+
+bool member::is_list() const {
+  struct visit {
+    bool operator()(type_name const& s) const { return false; }
+    bool operator()(express::list const& l) const { return true; }
+  };
+  return boost::apply_visitor(visit{}, type_);
+}
+
+std::string const& member::get_type_name() const {
+  struct visit {
+    std::string const& operator()(type_name const& s) const { return s.name_; }
+    std::string const& operator()(express::list const& l) const {
+      return boost::apply_visitor(*this, l.m_);
+    }
+  };
+  return boost::apply_visitor(visit{}, type_);
+}
 
 template <typename Iterator>
 struct express_grammar : qi::grammar<Iterator, schema(), ascii::space_type> {
@@ -73,6 +98,7 @@ struct express_grammar : qi::grammar<Iterator, schema(), ascii::space_type> {
       ("INTEGER", data_type::INTEGER)
       ("ENTITY", data_type::ENTITY)
       ("ENUM", data_type::ENUM)
+      ("BINARY", data_type::BINARY)
       ("SELECT", data_type::SELECT);
     // clang-format on
 
@@ -99,9 +125,9 @@ struct express_grammar : qi::grammar<Iterator, schema(), ascii::space_type> {
     type_ = "TYPE "  //
             >> as_string[lexeme[+(char_ - '=' - space)]][at_c<0>(_val) = _1] >>
             '='  //
-            >> qi::matches[(string("LIST") | "ARRAY") >> '[' >>
-                           int_[at_c<6>(_val) = _1] >> ':' >>
-                           int_[at_c<7>(_val) = _1] >> ']' >> "OF"]
+            >> qi::matches[(string("LIST") | "ARRAY" | "SET") >> '[' >>
+                           (int_[at_c<6>(_val) = _1] | '?') >> ':' >>
+                           (int_[at_c<7>(_val) = _1] | '?') >> ']' >> "OF"]
                           [at_c<5>(_val) = _1] >>
             (data_type_[at_c<1>(_val) = _1] |
              as_string[lexeme[+(char_ - ';' - space)]]
@@ -110,13 +136,19 @@ struct express_grammar : qi::grammar<Iterator, schema(), ascii::space_type> {
             >> *(char_ - "END_TYPE;")  //
             >> "END_TYPE;";
 
+    list_ = -string("UNIQUE") >> (string("LIST") | "ARRAY" | "SET") >> '[' >>
+            (int_[at_c<0>(_val) = _1] | '?') >> ':' >>
+            (int_[at_c<1>(_val) = _1] | '?') >> ']' >> "OF" >>
+            member_type_[at_c<2>(_val) = _1];
+
+    type_name_ = -string("UNIQUE") >>
+                 as_string[lexeme[+(char_ - space - ';')]][at_c<0>(_val) = _1];
+
+    member_type_ = list_ | type_name_;
+
     member_ = as_string[lexeme[+(char_ - space)]][at_c<0>(_val) = _1]  //
               >> ':' >> qi::matches["OPTIONAL"][at_c<2>(_val) = _1]  //
-              >> qi::matches[(string("LIST") | string("SET")) >> '[' >>
-                             (int_[at_c<4>(_val) = _1] | '?') >> ':' >>
-                             (int_[at_c<5>(_val) = _1] | '?') >> ']' >> "OF" >>
-                             -string("UNIQUE")][at_c<3>(_val) = _1] >>
-              as_string[lexeme[+(char_ - ';')]][at_c<1>(_val) = _1]  //
+              >> member_type_[at_c<1>(_val) = _1]  //
               >> ';';
 
     entity_ =
@@ -151,6 +183,9 @@ struct express_grammar : qi::grammar<Iterator, schema(), ascii::space_type> {
   }
 
   qi::symbols<char, data_type> data_type_;
+  qi::rule<Iterator, type_name(), ascii::space_type> type_name_;
+  qi::rule<Iterator, list(), ascii::space_type> list_;
+  qi::rule<Iterator, member_type(), ascii::space_type> member_type_;
   qi::rule<Iterator, member(), ascii::space_type> member_;
   qi::rule<Iterator, type(), ascii::space_type> enum_;
   qi::rule<Iterator, type(), ascii::space_type> select_;

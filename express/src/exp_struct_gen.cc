@@ -14,9 +14,14 @@
 
 namespace express {
 
-static auto const special = std::map<std::string, std::string>{
-    {"BOOLEAN", "bool"}, {"LOGICAL", "bool"},       {"REAL", "double"},
-    {"INTEGER", "int"},  {"STRING", "std::string"}, {"BINARY(32)", "uint32_t"}};
+static auto const special =
+    std::map<std::string, std::string>{{"BOOLEAN", "bool"},
+                                       {"LOGICAL", "bool"},
+                                       {"REAL", "double"},
+                                       {"INTEGER", "int"},
+                                       {"STRING", "std::string"},
+                                       {"BINARY(32)", "uint32_t"},
+                                       {"BINARY", "std::vector<uint8_t>"}};
 
 std::optional<std::string> is_special(schema const& s,
                                       std::string const& type_name) {
@@ -34,6 +39,7 @@ std::optional<std::string> is_special(schema const& s,
       case data_type::ENUM: return type_name;
       case data_type::ENTITY: return std::nullopt;
       case data_type::SELECT: return type_name;
+      case data_type::BINARY: return "std::vector<uint8_t>";
       case data_type::UNKOWN: throw std::runtime_error{"unkown type"};
     }
   }
@@ -47,6 +53,9 @@ std::optional<std::string> is_special(schema const& s,
 bool is_value_type(schema const& s, type const& t) {
   auto const it = s.type_map_.find(t.name_);
   utl::verify(it != end(s.type_map_), "type {} not found in type map", t.name_);
+  if (it->second->list_) {
+    return true;
+  }
   switch (it->second->data_type_) {
     case data_type::ALIAS:
       utl::verify(t.alias_ != t.name_, "infinite alias loop for {}", t.name_);
@@ -58,7 +67,8 @@ bool is_value_type(schema const& s, type const& t) {
     case data_type::NUMBER:
     case data_type::STRING:
     case data_type::INTEGER:
-    case data_type::ENUM: [[fallthrough]];
+    case data_type::ENUM:
+    case data_type::BINARY: [[fallthrough]];
     case data_type::SELECT: return true;
 
     case data_type::ENTITY: return false;
@@ -74,18 +84,13 @@ void generate_header(std::ostream& out, schema const& s, type const& t) {
   auto const uses_optional =
       std::any_of(begin(t.members_), end(t.members_),
                   [](member const& m) { return m.optional_; });
-  auto const uses_vector =
-      std::any_of(begin(t.members_), end(t.members_), [](member const& m) {
-        return m.list_ && m.max_size_ == std::numeric_limits<unsigned>::max();
-      });
-  auto const uses_array =
-      std::any_of(begin(t.members_), end(t.members_), [](member const& m) {
-        return m.list_ && m.max_size_ != std::numeric_limits<unsigned>::max();
-      });
+  auto const uses_list =
+      std::any_of(begin(t.members_), end(t.members_),
+                  [](member const& m) { return m.is_list(); });
   auto const uses_string =
       t.data_type_ == data_type::STRING ||
       std::any_of(begin(t.members_), end(t.members_), [&](member const& m) {
-        auto const special = is_special(s, m.type_);
+        auto const special = is_special(s, m.get_type_name());
         return special.has_value() && *special == "std::string";
       });
   auto const uses_variant = t.data_type_ == data_type::SELECT;
@@ -96,18 +101,16 @@ void generate_header(std::ostream& out, schema const& s, type const& t) {
     out << "#include \"" << s.name_ << "/" << t.subtype_of_ << ".h\"\n";
   }
 
-  if (uses_array || uses_optional || uses_string || uses_variant ||
-      uses_vector) {
+  if (uses_list || uses_optional || uses_string || uses_variant) {
     out << "\n";
   }
   out << "#include <iosfwd>\n"
-      << (uses_array ? "#include <vector>\n" : "")
+      << (uses_list ? "#include <vector>\n" : "")
       << (uses_optional ? "#include <optional>\n" : "")
       << (uses_string ? "#include <string>\n" : "")
       << (uses_variant ? "#include <variant>\n" : "")  //
       << "#include <vector>\n";
-  if (uses_array || uses_optional || uses_string || uses_variant ||
-      uses_vector) {
+  if (uses_list || uses_optional || uses_string || uses_variant) {
     out << "\n";
   }
   if (t.data_type_ == data_type::SELECT) {
@@ -123,7 +126,7 @@ void generate_header(std::ostream& out, schema const& s, type const& t) {
   }
   if (t.data_type_ == data_type::ENTITY) {
     for (auto const& m : t.members_) {
-      if (auto const it = s.type_map_.find(m.type_);
+      if (auto const it = s.type_map_.find(m.get_type_name());
           it != end(s.type_map_) &&
           (it->second->data_type_ == data_type::ENUM ||
            it->second->data_type_ == data_type::SELECT)) {
@@ -151,6 +154,10 @@ void generate_header(std::ostream& out, schema const& s, type const& t) {
       out << "using " << t.name_ << " = std::string;\n";
       break;
 
+    case data_type::BINARY:
+      out << "using " << t.name_ << " = std::vector<uint8_t>;\n";
+      break;
+
     case data_type::SELECT:
       for (auto const& m : t.details_) {
         if (!is_value_type(s, *s.type_map_.at(m))) {
@@ -174,7 +181,16 @@ void generate_header(std::ostream& out, schema const& s, type const& t) {
       break;
 
     case data_type::ALIAS:
-      out << "using " << t.name_ << " = " << t.alias_ << ";\n";
+      out << "using " << t.name_ << " = ";
+      if (t.list_) {
+        out << "std::vector<";
+      }
+      out << t.alias_
+          << (!is_value_type(s, *s.type_map_.at(t.alias_)) ? "*" : "");
+      if (t.list_) {
+        out << ">";
+      }
+      out << ";\n";
       break;
 
     case data_type::ENUM:
@@ -191,9 +207,9 @@ void generate_header(std::ostream& out, schema const& s, type const& t) {
 
     case data_type::ENTITY: {
       for (auto const& m : t.members_) {
-        if (auto const data_type = is_special(s, m.type_);
+        if (auto const data_type = is_special(s, m.get_type_name());
             !data_type.has_value()) {
-          out << "struct " << m.type_ << ";\n";
+          out << "struct " << m.get_type_name() << ";\n";
         }
       }
       if (!t.members_.empty()) {
@@ -217,26 +233,37 @@ void generate_header(std::ostream& out, schema const& s, type const& t) {
              "override;\n";
 
       for (auto const& m : t.members_) {
-        auto const use_array =
-            false && m.max_size_ != std::numeric_limits<unsigned>::max();
-        auto const type_it = s.type_map_.find(m.type_);
-        auto const is_list =
-            m.list_ || (type_it != end(s.type_map_) && type_it->second->list_);
-        out << "  "  //
-            << (m.optional_ ? "std::optional<" : "")
-            << (is_list ? use_array ? "std::array<" : "std::vector<" : "");
+        auto const type_it = s.type_map_.find(m.get_type_name());
+        auto const is_list = m.is_list() || (type_it != end(s.type_map_) &&
+                                             type_it->second->list_);
 
-        auto const data_type = is_special(s, m.type_);
-        if (data_type.has_value()) {
-          out << *data_type;
-        } else {
-          out << m.type_ << "*";
-        }
-        if (use_array) {
-          out << ", " << m.max_size_;
-        }
-        out << (is_list ? ">" : "")  //
-            << (m.optional_ ? ">" : "")  //
+        struct visit {
+          visit(schema const& s, std::ostream& o) : s_{s}, out_{o} {}
+          void operator()(express::type_name const& t) const {
+            if (auto const data_type = is_special(s_, t.name_);
+                data_type.has_value()) {
+              out_ << *data_type;
+            } else {
+              out_ << t.name_ << "*";
+            }
+          }
+          void operator()(express::list const& l) const {
+            out_ << "std::vector<";
+            boost::apply_visitor(*this, l.m_);
+            out_ << ">";
+          }
+          schema const& s_;
+          std::ostream& out_;
+        };
+
+        out << "  "  //
+            << (m.optional_ ? "std::optional<" : "");
+
+        boost::apply_visitor(visit{s, out}, m.type_);
+
+        auto const data_type = is_special(s, m.get_type_name());
+        data_type.has_value();
+        out << (m.optional_ ? ">" : "")  //
             << " " << m.name_ << "_"
             << (!data_type.has_value() && !is_list && !m.optional_ ? "{nullptr}"
                                                                    : "")
@@ -411,7 +438,7 @@ void generate_source(std::ostream& out, schema const& s, type const& t) {
         out << "  " << t.subtype_of_ << "::resolve(m);\n";
       }
       for (auto const& m : t.members_) {
-        if (auto const member_type_it = s.type_map_.find(m.type_);
+        if (auto const member_type_it = s.type_map_.find(m.get_type_name());
             member_type_it != end(s.type_map_) &&
             (member_type_it->second->data_type_ == data_type::ENTITY ||
              member_type_it->second->data_type_ == data_type::SELECT)) {

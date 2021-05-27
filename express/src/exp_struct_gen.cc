@@ -15,7 +15,7 @@
 namespace express {
 
 static auto const special = std::map<std::string, std::string>{
-    {"BOOLEAN", "bool"},       {"LOGICAL", "step::logical"},
+    {"BOOLEAN", "bool"},       {"LOGICAL", "step::exp_logical"},
     {"REAL", "double"},        {"INTEGER", "int"},
     {"STRING", "std::string"}, {"BINARY(32)", "uint32_t"}};
 
@@ -27,7 +27,7 @@ std::optional<std::string> is_special(schema const& s,
     switch (t->data_type_) {
       case data_type::ALIAS: return is_special(s, t->alias_);
       case data_type::BOOL: [[fallthrough]];
-      case data_type::LOGICAL: return "step::logical";
+      case data_type::LOGICAL: return "step::exp_logical";
       case data_type::REAL: [[fallthrough]];
       case data_type::NUMBER: return "double";
       case data_type::STRING: return "std::string";
@@ -128,7 +128,7 @@ void generate_header(std::ostream& out, schema const& s, type const& t) {
       }
     }
   } else if (t.data_type_ == data_type::LOGICAL) {
-    out << "#include \"step/logical.h\"\n";
+    out << "#include \"step/exp_logical.h\"\n";
   }
 
   if (t.data_type_ == data_type::ENTITY || t.data_type_ == data_type::ENUM) {

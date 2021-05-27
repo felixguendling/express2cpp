@@ -44,7 +44,7 @@ struct type_name {
 using member_type = boost::variant<type_name, boost::recursive_wrapper<list>>;
 
 struct list {
-  unsigned min_, max_;
+  unsigned min_{0}, max_{std::numeric_limits<unsigned>::max()};
   member_type m_;
 };
 
